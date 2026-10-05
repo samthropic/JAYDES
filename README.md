@@ -1,5 +1,5 @@
 # flask-api
-An example flask rest API server.
+An example flask rest API server
 
 To build production, type `make prod`.
 
