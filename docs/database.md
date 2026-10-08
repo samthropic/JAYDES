@@ -84,6 +84,18 @@ MongoDB listens on `localhost:27017`. Leave `CLOUD_MONGO` unset, or set it to `0
 
 `is_db_up()` in `data/db_connect.py` always returns true. It does not ping the server.
 
+## Running tests
+
+From the repository root, after the local setup above:
+
+```bash
+make dev_env
+export PYTHONPATH="$(pwd)"
+make all_tests
+```
+
+`make all_tests` lints and runs pytest for `server`, `states`, and `regions`. `common.mk` sets `CLOUD_MONGO=0` for those runs. GitHub Actions runs the same `make all_tests` target on push and pull request to `main` (`.github/workflows/main.yml`). The PythonAnywhere deploy step in that workflow stays commented out.
+
 ## Seeding
 
 No seed script exists yet. The first load should copy the mock data the API already uses.
