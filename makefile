@@ -18,6 +18,7 @@ github: FORCE
 all_tests: FORCE
 	cd $(API_DIR); make tests
 	cd $(STATES_DIR); make tests
+	cd regions; make tests
 	# cd $(DB_DIR); make tests
 
 dev_env: FORCE
