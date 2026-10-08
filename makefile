@@ -4,6 +4,7 @@ include common.mk
 API_DIR = server
 DB_DIR = data
 STATES_DIR = states
+NEIGHBORHOODS_DIR = neighborhoods
 SEC_DIR = security
 REQ_DIR = .
 
@@ -18,6 +19,7 @@ github: FORCE
 all_tests: FORCE
 	cd $(API_DIR); make tests
 	cd $(STATES_DIR); make tests
+	cd $(NEIGHBORHOODS_DIR); make tests
 	# cd $(DB_DIR); make tests
 
 dev_env: FORCE
