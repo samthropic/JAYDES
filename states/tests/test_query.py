@@ -43,4 +43,7 @@ def test_check_valid_state_code_too_long():
 
 def test_query():
     states = qry.read()
-    assert isinstance(states, dict)
+    assert isinstance(states, list)
+    for state in states:
+        assert isinstance(state[qry.ID], str)
+        assert len(state[qry.ID]) == qry.STATE_CODE_LEN

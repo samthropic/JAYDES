@@ -27,7 +27,18 @@ def test_get_states():
     assert resp.status_code == OK
     resp_json = resp.get_json()
     assert ep.STATES_RESP in resp_json
-    assert isinstance(resp_json[ep.STATES_RESP], dict)
+    states = resp_json[ep.STATES_RESP]
+    assert isinstance(states, list)
+    assert len(states) > 0
+    for state in states:
+        assert 'id' in state
+        assert 'name' in state
+
+
+def test_states_in_swagger():
+    resp = TEST_CLIENT.get('/swagger.json')
+    assert resp.status_code == OK
+    assert 'State' in resp.get_json()['definitions']
 
 
 @patch('states.query.is_db_up', return_value=False, autospec=True)
