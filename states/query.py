@@ -4,6 +4,7 @@ from data.db_connect import is_db_up
 
 
 STATE_CODE_LEN = 2
+ID = 'id'
 
 TEST_STATE = {
     "state_code": "TS",
@@ -38,12 +39,13 @@ STATE_TEST_DATA = {
 
 def read():
     """
-    Return a list of all states in the test data.
+    Return a list of all states in the test data. The state code is used
+    as each state's id.
     """
     if not is_db_up():
         print("Database is down.")
         return None
-    return STATE_TEST_DATA
+    return [{ID: code, **data} for code, data in STATE_TEST_DATA.items()]
 
 
 def exists(state_code: str):
@@ -89,8 +91,8 @@ def create(state_code: str, population: int, capital: str,
 
 def main():
     states = read()
-    for state, data in states.items():
-        print(f"State: {state}")
+    for data in states:
+        print(f"State: {data[ID]}")
         print(f"Population: {data['population']}")
         print(f"Capital: {data['capital']}")
         print(f"Area (sq miles): {data['area_sq_miles']}")

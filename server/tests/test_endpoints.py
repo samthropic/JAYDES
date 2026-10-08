@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import pytest
 
-import server.endpoints as ep
+from server import endpoints as ep
 
 TEST_CLIENT = ep.app.test_client()
 
@@ -27,10 +27,34 @@ def test_get_states():
     assert resp.status_code == OK
     resp_json = resp.get_json()
     assert ep.STATES_RESP in resp_json
-    assert isinstance(resp_json[ep.STATES_RESP], dict)
+    states = resp_json[ep.STATES_RESP]
+    assert isinstance(states, list)
+    assert len(states) > 0
+    for state in states:
+        assert 'id' in state
+        assert 'name' in state
+
+
+def test_states_in_swagger():
+    resp = TEST_CLIENT.get('/swagger.json')
+    assert resp.status_code == OK
+    assert 'State' in resp.get_json()['definitions']
 
 
 @patch('states.query.is_db_up', return_value=False, autospec=True)
 def test_get_states_db_unavailable(mock_is_db_up):
     resp = TEST_CLIENT.get(ep.STATES_EP)
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+def test_get_regions():
+    resp = TEST_CLIENT.get(ep.REGIONS_EP)
+    assert resp.status_code == OK
+    resp_json = resp.get_json()
+    assert ep.REGIONS_RESP in resp_json
+    assert isinstance(resp_json[ep.REGIONS_RESP], dict)
+
+@patch('regions.query.is_db_up', return_value=False, autospec=True)
+def test_get_regions_db_unavailable(mock_is_db_up):
+    resp = TEST_CLIENT.get(ep.REGIONS_EP)
     assert resp.status_code == SERVICE_UNAVAILABLE
