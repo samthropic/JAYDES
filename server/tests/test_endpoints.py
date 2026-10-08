@@ -34,3 +34,16 @@ def test_get_states():
 def test_get_states_db_unavailable(mock_is_db_up):
     resp = TEST_CLIENT.get(ep.STATES_EP)
     assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+def test_get_regions():
+    resp = TEST_CLIENT.get(ep.REGIONS_EP)
+    assert resp.status_code == OK
+    resp_json = resp.get_json()
+    assert ep.REGIONS_RESP in resp_json
+    assert isinstance(resp_json[ep.REGIONS_RESP], dict)
+
+@patch('regions.query.is_db_up', return_value=False, autospec=True)
+def test_get_regions_db_unavailable(mock_is_db_up):
+    resp = TEST_CLIENT.get(ep.REGIONS_EP)
+    assert resp.status_code == SERVICE_UNAVAILABLE
