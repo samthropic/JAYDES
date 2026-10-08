@@ -72,6 +72,7 @@ class States(Resource):
             raise wz.ServiceUnavailable('Database may be down.')
         return {STATES_RESP: states}
 
+
 @api.route(REGIONS_EP)
 class Regions(Resource):
     """
