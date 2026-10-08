@@ -8,6 +8,8 @@ from flask import Flask  # , request
 from flask_restx import Resource, Api  # , fields  # Namespace
 from flask_cors import CORS
 
+import regions.query as rqry
+
 import werkzeug.exceptions as wz
 
 import states.query as sqry
@@ -23,6 +25,8 @@ HELLO_RESP = 'hello'
 STATES_EP = '/states'
 STATES_RESP = 'States:'
 MESSAGE = 'Message'
+REGIONS_EP = '/regions'
+REGIONS_RESP = 'Regions:'
 
 
 @api.route(HELLO_EP)
@@ -67,3 +71,19 @@ class States(Resource):
         if states is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {STATES_RESP: states}
+
+@api.route(REGIONS_EP)
+class Regions(Resource):
+    """
+    The get method will return a list of all regions in the database.
+    """
+    @api.response(HTTPStatus.OK.value, 'Success')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def get(self):
+        """
+        The get method will return a list of all regions in the database.
+        """
+        regions = rqry.read()
+        if regions is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        return {REGIONS_RESP: regions}
