@@ -22,16 +22,16 @@ def load_states(file_path):
 
 
 def main():
-    # accept the file path as an argument
+    # accept the file path as an argumen
     if len(os.sys.argv) > 1:
         file_path = os.sys.argv[1]
     else:
         print("USAGE: python load.py <path_to_states_csv>")
         exit(1)
-   
+
     # Load states from the CSV file
     states = load_states(file_path)
-    
+
     # Print the loaded states
     for state in states:
         print(state)

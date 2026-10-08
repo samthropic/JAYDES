@@ -5,7 +5,7 @@ The endpoint called `endpoints` will return all available endpoints.
 from http import HTTPStatus
 
 from flask import Flask  # , request
-from flask_restx import Resource, Api  # , fields  # Namespace
+from flask_restx import Resource, Api, fields  # Namespace
 from flask_cors import CORS
 
 import werkzeug.exceptions as wz
@@ -23,6 +23,14 @@ HELLO_RESP = 'hello'
 STATES_EP = '/states'
 STATES_RESP = 'States:'
 MESSAGE = 'Message'
+
+state_model = api.model('State', {
+    sqry.ID: fields.String(description='Two-letter state code', example='NY'),
+    'name': fields.String(description='State name', example='New York'),
+    'capital': fields.String(description='State capital', example='Albany'),
+    'population': fields.Integer(description='Population'),
+    'area_sq_miles': fields.Float(description='Area in square miles'),
+})
 
 
 @api.route(HELLO_EP)
@@ -57,7 +65,7 @@ class States(Resource):
     """
     The get method will return a list of all states in the database.
     """
-    @api.response(HTTPStatus.OK.value, 'Success')
+    @api.response(HTTPStatus.OK.value, 'Success', [state_model])
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def get(self):
         """
