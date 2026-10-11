@@ -56,7 +56,9 @@ def check_valid_region(region_code: str, name: str, population: int,
     if exists(region_code):
         raise ValueError(f"Region code {region_code} already exists.")
     if not isinstance(region_code, str) or len(region_code) != REGION_CODE_LEN:
-        raise ValueError(f"Region code must be {REGION_CODE_LEN}-letter string.")
+        raise ValueError(
+            f"Region code must be {REGION_CODE_LEN}-letter string."
+        )
     if not isinstance(name, str) or len(name) == 0:
         raise ValueError("Region name must be a non-empty string.")
     if not isinstance(population, int) or population < 0:
