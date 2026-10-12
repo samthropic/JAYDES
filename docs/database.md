@@ -96,6 +96,8 @@ make all_tests
 
 `make all_tests` lints and runs pytest for `server`, `states`, and `regions`. `common.mk` sets `CLOUD_MONGO=0` for those runs. GitHub Actions runs the same `make all_tests` target on push and pull request to `main` (`.github/workflows/main.yml`). The PythonAnywhere deploy step in that workflow stays commented out.
 
+Each of those test runs uses `data/db_fixture.py`. Before a test, it clears the `states` and `regions` collections and inserts the sample rows. After the test, it clears those collections again. Local MongoDB must be running.
+
 ## Seeding
 
 `states.query` and `regions.query` insert their mock dictionaries the first time a read finds an empty collection. There is no separate seed script. The rows below are what that insert writes.

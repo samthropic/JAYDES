@@ -92,6 +92,16 @@ def delete(collection: str, filt: dict, db=SE_DB):
     return del_result.deleted_count
 
 
+def delete_many(collection, filt=None, db=SE_DB):
+    """
+    Delete every document matching filt. An empty filt clears the collection.
+    """
+    if filt is None:
+        filt = {}
+    del_result = client[db][collection].delete_many(filt)
+    return del_result.deleted_count
+
+
 def update(collection, filters, update_dict, db=SE_DB):
     return client[db][collection].update_one(filters, {'$set': update_dict})
 
