@@ -63,9 +63,14 @@ def exists(state_code: str):
     return state_code in STATE_TEST_DATA
 
 
-def check_valid_state(state_code: str, population: int, capital: str,
-                      area_sq_miles: float, name: str,
-                      region_id: str = None):
+def check_valid_state(
+    state_code: str,
+    population: int,
+    capital: str,
+    area_sq_miles: float,
+    name: str,
+    region_id: str = None,
+):
     if exists(state_code):
         raise ValueError(f"State code {state_code} already exists.")
     if not isinstance(state_code, str) or len(state_code) != STATE_CODE_LEN:
@@ -85,15 +90,27 @@ def check_valid_state(state_code: str, population: int, capital: str,
     return True
 
 
-def create(state_code: str, population: int, capital: str,
-            area_sq_miles: float, name: str, region_id: str = None):
+def create(
+    state_code: str,
+    population: int,
+    capital: str,
+    area_sq_miles: float,
+    name: str,
+    region_id: str = None,
+):
     """
     Create a new state entry in the test data.
     """
     # check_valid_state raises ValueError if the state is invalid, so we don't
     # need to check the return value.
-    check_valid_state(state_code, population, capital, area_sq_miles, name,
-                      region_id)
+    check_valid_state(
+        state_code,
+        population,
+        capital,
+        area_sq_miles,
+        name,
+        region_id,
+    )
     if not is_db_up():
         print("Database is down.")
         return None
