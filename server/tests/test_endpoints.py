@@ -47,6 +47,25 @@ def test_get_states_db_unavailable(mock_is_db_up):
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
+def test_get_state_by_id():
+    resp = TEST_CLIENT.get(f'{ep.STATES_EP}/AL')
+    assert resp.status_code == OK
+    state = resp.get_json()[ep.STATE_RESP]
+    assert state['id'] == 'AL'
+    assert state['name'] == 'Alabama'
+
+
+def test_get_missing_state_by_id():
+    resp = TEST_CLIENT.get(f'{ep.STATES_EP}/ZZ')
+    assert resp.status_code == NOT_FOUND
+
+
+@patch('states.query.is_db_up', return_value=False, autospec=True)
+def test_get_state_by_id_db_unavailable(mock_is_db_up):
+    resp = TEST_CLIENT.get(f'{ep.STATES_EP}/AL')
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
 def test_get_regions():
     resp = TEST_CLIENT.get(ep.REGIONS_EP)
     assert resp.status_code == OK

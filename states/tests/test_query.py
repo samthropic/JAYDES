@@ -55,6 +55,17 @@ def test_check_valid_state_code_too_long():
                               TEST_ST['region_id'])
 
 
+def test_read_one():
+    state = qry.read_one('AL')
+    assert state['id'] == 'AL'
+    assert state['name'] == 'Alabama'
+    assert qry.dbc.MONGO_ID not in state
+
+
+def test_read_one_not_found():
+    assert qry.read_one('ZZ') is None
+
+
 def test_query():
     states = qry.read()
     assert isinstance(states, list)

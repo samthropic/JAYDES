@@ -69,6 +69,21 @@ def read():
     return dbc.read(STATES_COLLECTION)
 
 
+def read_one(state_code: str):
+    """
+    Return the state with this code from seDB, or None if there is no such
+    state or the database is down.
+    """
+    if not is_db_up():
+        print("Database is down.")
+        return None
+    _ensure_seeded()
+    state = dbc.read_one(STATES_COLLECTION, {ID: state_code})
+    if state is not None:
+        state.pop(dbc.MONGO_ID, None)
+    return state
+
+
 def exists(state_code: str):
     """
     Check if a state exists in seDB.
