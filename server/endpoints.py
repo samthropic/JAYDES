@@ -8,6 +8,7 @@ from flask import Flask  # , request
 from flask_restx import Resource, Api, fields  # Namespace
 from flask_cors import CORS
 
+import properties.query as pqry
 import regions.query as rqry
 
 import werkzeug.exceptions as wz
@@ -27,6 +28,8 @@ STATES_RESP = 'States:'
 MESSAGE = 'Message'
 REGIONS_EP = '/regions'
 REGIONS_RESP = 'Regions:'
+PROPERTIES_EP = '/properties'
+PROPERTIES_RESP = 'Properties:'
 
 state_model = api.model('State', {
     sqry.ID: fields.String(description='Two-letter state code', example='NY'),
@@ -34,6 +37,18 @@ state_model = api.model('State', {
     'capital': fields.String(description='State capital', example='Albany'),
     'population': fields.Integer(description='Population'),
     'area_sq_miles': fields.Float(description='Area in square miles'),
+})
+
+property_model = api.model('Property', {
+    'id': fields.String(description='Property id'),
+    'address': fields.String(description='Property address',
+                            example='125 Perry Street, New York, NY'),
+    'neighborhood_id': fields.String(description='Neighborhood id'),
+    'price': fields.Float(description='Price'),
+    'bedrooms': fields.Integer(description='Bedroom count'),
+    'bathrooms': fields.Float(description='Bathroom count'),
+    'latitude': fields.Float(description='Latitude'),
+    'longitude': fields.Float(description='Longitude'),
 })
 
 
@@ -96,3 +111,20 @@ class Regions(Resource):
         if regions is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {REGIONS_RESP: regions}
+
+
+@api.route(PROPERTIES_EP)
+class Properties(Resource):
+    """
+    The get method will return a list of all properties in the database.
+    """
+    @api.response(HTTPStatus.OK.value, 'Success', [property_model])
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def get(self):
+        """
+        The get method will return a list of all properties in the database.
+        """
+        properties = pqry.read()
+        if properties is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        return {PROPERTIES_RESP: properties}

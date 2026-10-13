@@ -2,6 +2,8 @@
 
 import math
 
+from data.db_connect import is_db_up
+
 ID = "id"
 
 PROPERTY_TEST_DATA = {
@@ -63,6 +65,16 @@ TEST_PROPERTY = {
     "latitude": 40.7128,
     "longitude": -74.0060,
 }
+
+
+def read():
+    """
+    Return a list of all properties in the test data.
+    """
+    if not is_db_up():
+        print("Database is down.")
+        return None
+    return [{ID: property_id, **data} for property_id, data in PROPERTY_TEST_DATA.items()]
 
 
 def _is_non_empty_string(value):
