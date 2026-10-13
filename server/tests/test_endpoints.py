@@ -1,5 +1,7 @@
 from http.client import (
     BAD_REQUEST,
+    CONFLICT,
+    CREATED,
     FORBIDDEN,
     NOT_ACCEPTABLE,
     NOT_FOUND,
@@ -12,6 +14,7 @@ from unittest.mock import patch
 import pytest
 
 from server import endpoints as ep
+import states.query as sqry
 
 TEST_CLIENT = ep.app.test_client()
 
@@ -63,6 +66,53 @@ def test_get_missing_state_by_id():
 @patch('states.query.is_db_up', return_value=False, autospec=True)
 def test_get_state_by_id_db_unavailable(mock_is_db_up):
     resp = TEST_CLIENT.get(f'{ep.STATES_EP}/AL')
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+NEW_STATE = {
+    'id': 'TS',
+    'name': 'Test State',
+    'capital': 'Test Capital',
+    'population': 1000000,
+    'area_sq_miles': 50000,
+    'region_id': 'NE',
+}
+
+
+def test_post_state():
+    with patch.dict(sqry.STATE_TEST_DATA):
+        resp = TEST_CLIENT.post(ep.STATES_EP, json=NEW_STATE)
+    assert resp.status_code == CREATED
+    state = resp.get_json()[ep.STATE_RESP]
+    assert state['id'] == NEW_STATE['id']
+    assert state['name'] == NEW_STATE['name']
+
+
+def test_post_state_already_exists():
+    resp = TEST_CLIENT.post(ep.STATES_EP, json={**NEW_STATE, 'id': 'AL'})
+    assert resp.status_code == CONFLICT
+
+
+def test_post_state_bad_code():
+    resp = TEST_CLIENT.post(ep.STATES_EP, json={**NEW_STATE, 'id': 'TOO'})
+    assert resp.status_code == BAD_REQUEST
+
+
+def test_post_state_unknown_region():
+    resp = TEST_CLIENT.post(ep.STATES_EP, json={**NEW_STATE,
+                                                'region_id': 'ZZ'})
+    assert resp.status_code == BAD_REQUEST
+
+
+def test_post_state_missing_field():
+    bad_state = {k: v for k, v in NEW_STATE.items() if k != 'name'}
+    resp = TEST_CLIENT.post(ep.STATES_EP, json=bad_state)
+    assert resp.status_code == BAD_REQUEST
+
+
+@patch('states.query.is_db_up', return_value=False, autospec=True)
+def test_post_state_db_unavailable(mock_is_db_up):
+    resp = TEST_CLIENT.post(ep.STATES_EP, json=NEW_STATE)
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
