@@ -40,6 +40,17 @@ state_model = api.model('State', {
     'area_sq_miles': fields.Float(description='Area in square miles'),
 })
 
+state_input_model = api.model('StateInput', {
+    sqry.ID: fields.String(required=True, example='NY',
+                           description='Two-letter state code'),
+    'name': fields.String(required=True, example='New York'),
+    'capital': fields.String(required=True, example='Albany'),
+    'population': fields.Integer(required=True),
+    'area_sq_miles': fields.Float(required=True),
+    'region_id': fields.String(description='Id of an existing region',
+                               example='NE'),
+})
+
 property_model = api.model('Property', {
     'id': fields.String(description='Property id'),
     'address': fields.String(description='Property address',
@@ -95,6 +106,35 @@ class States(Resource):
         if states is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {STATES_RESP: states}
+
+    @api.expect(state_input_model, validate=True)
+    @api.response(HTTPStatus.CREATED.value, 'Created', state_model)
+    @api.response(HTTPStatus.BAD_REQUEST.value, 'Invalid state data')
+    @api.response(HTTPStatus.CONFLICT.value, 'State already exists')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def post(self):
+        """
+        The post method will create a new state.
+        """
+        data = api.payload
+        if not sqry.is_db_up():
+            raise wz.ServiceUnavailable('Database may be down.')
+        if sqry.exists(data[sqry.ID]):
+            raise wz.Conflict(f'State {data[sqry.ID]} already exists.')
+
+        try:
+            state = sqry.create(
+                data[sqry.ID],
+                data['population'],
+                data['capital'],
+                data['area_sq_miles'],
+                data['name'],
+                data.get('region_id'),
+            )
+        except ValueError as err:
+            raise wz.BadRequest(str(err))
+        created = {sqry.ID: data[sqry.ID], **state}
+        return {STATE_RESP: created}, HTTPStatus.CREATED
 
 
 @api.route(f'{STATES_EP}/<state_id>')
