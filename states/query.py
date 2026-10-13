@@ -73,7 +73,10 @@ def check_valid_state(state_code: str, population: int, capital: str,
     if not isinstance(population, int) or population < 0:
         raise ValueError("Population must be a non-negative integer.")
     if region_id is not None:
-        if not isinstance(region_id, str) or len(region_id) != rqry.REGION_CODE_LEN:
+        if (
+            not isinstance(region_id, str)
+            or len(region_id) != rqry.REGION_CODE_LEN
+        ):
             raise ValueError(
                 f"Region ID must be a {rqry.REGION_CODE_LEN}-letter string."
             )
@@ -83,7 +86,7 @@ def check_valid_state(state_code: str, population: int, capital: str,
 
 
 def create(state_code: str, population: int, capital: str,
-           area_sq_miles: float, name: str, region_id: str = None):
+            area_sq_miles: float, name: str, region_id: str = None):
     """
     Create a new state entry in the test data.
     """
