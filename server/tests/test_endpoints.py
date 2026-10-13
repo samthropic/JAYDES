@@ -54,7 +54,47 @@ def test_get_regions():
     assert ep.REGIONS_RESP in resp_json
     assert isinstance(resp_json[ep.REGIONS_RESP], dict)
 
+
+def test_get_properties():
+    resp = TEST_CLIENT.get(ep.PROPERTIES_EP)
+    assert resp.status_code == OK
+    resp_json = resp.get_json()
+    assert ep.PROPERTIES_RESP in resp_json
+    properties = resp_json[ep.PROPERTIES_RESP]
+    assert isinstance(properties, list)
+    assert len(properties) > 0
+    for prop in properties:
+        assert 'id' in prop
+        assert 'address' in prop
+        assert 'neighborhood_id' in prop
+
+
+def test_get_property_by_id():
+    resp = TEST_CLIENT.get(f"{ep.PROPERTIES_EP}/prop-001")
+    assert resp.status_code == OK
+    resp_json = resp.get_json()
+    assert resp_json['id'] == 'prop-001'
+    assert 'address' in resp_json
+
+
+def test_get_missing_property_by_id():
+    resp = TEST_CLIENT.get(f"{ep.PROPERTIES_EP}/missing-prop")
+    assert resp.status_code == NOT_FOUND
+
+
 @patch('regions.query.is_db_up', return_value=False, autospec=True)
 def test_get_regions_db_unavailable(mock_is_db_up):
     resp = TEST_CLIENT.get(ep.REGIONS_EP)
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+@patch('properties.query.is_db_up', return_value=False, autospec=True)
+def test_get_properties_db_unavailable(mock_is_db_up):
+    resp = TEST_CLIENT.get(ep.PROPERTIES_EP)
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+@patch('properties.query.is_db_up', return_value=False, autospec=True)
+def test_get_property_by_id_db_unavailable(mock_is_db_up):
+    resp = TEST_CLIENT.get(f"{ep.PROPERTIES_EP}/prop-001")
     assert resp.status_code == SERVICE_UNAVAILABLE

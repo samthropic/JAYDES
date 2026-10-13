@@ -28,6 +28,17 @@ def test_each_property_has_required_fields():
         assert property_data["neighborhood_id"]
 
 
+def test_property_exists_and_read_returns_record():
+    assert qry.exists("prop-001")
+    prop = qry.read("prop-001")
+    assert prop["id"] == "prop-001"
+    assert prop["address"]
+
+
+def test_read_missing_property_returns_none():
+    assert qry.read("missing-prop") is None
+
+
 @pytest.mark.parametrize(
     "property_id",
     [pytest.param("", id="empty"), pytest.param("prop-001", id="duplicate")],
