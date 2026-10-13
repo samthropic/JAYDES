@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
+import data.db_connect as dbc
 from data.db_connect import is_db_up
 import regions.query as rqry
 
 
 STATE_CODE_LEN = 2
 ID = 'id'
+STATES_COLLECTION = 'states'
 
 TEST_STATE = {
     "state_code": "TS",
@@ -42,25 +44,40 @@ STATE_TEST_DATA = {
 }
 
 
+def _state_docs():
+    """Copy STATE_TEST_DATA into documents whose id is the state code."""
+    return [{ID: code, **data} for code, data in STATE_TEST_DATA.items()]
+
+
+def _ensure_seeded():
+    """Insert STATE_TEST_DATA when the states collection is empty."""
+    dbc.connect_db()
+    if dbc.read(STATES_COLLECTION):
+        return
+    for doc in _state_docs():
+        dbc.create(STATES_COLLECTION, doc)
+
+
 def read():
     """
-    Return a list of all states in the test data. The state code is used
-    as each state's id.
+    Return a list of states from seDB. The state code is each state's id.
     """
     if not is_db_up():
         print("Database is down.")
         return None
-    return [{ID: code, **data} for code, data in STATE_TEST_DATA.items()]
+    _ensure_seeded()
+    return dbc.read(STATES_COLLECTION)
 
 
 def exists(state_code: str):
     """
-    Check if a state exists in the test data.
+    Check if a state exists in seDB.
     """
     if not is_db_up():
         print("Database is down.")
         return None
-    return state_code in STATE_TEST_DATA
+    _ensure_seeded()
+    return dbc.read_one(STATES_COLLECTION, {ID: state_code}) is not None
 
 
 def check_valid_state(

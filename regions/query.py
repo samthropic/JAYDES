@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
+import data.db_connect as dbc
 from data.db_connect import is_db_up
 
 
 REGION_CODE_LEN = 2
+ID = 'id'
+REGIONS_COLLECTION = 'regions'
 
 TEST_REGION = {
     "region_code": "TR",
@@ -31,24 +34,39 @@ REGION_TEST_DATA = {
 }
 
 
+def _ensure_seeded():
+    """Insert REGION_TEST_DATA when the regions collection is empty."""
+    dbc.connect_db()
+    if dbc.read(REGIONS_COLLECTION):
+        return
+    for code, data in REGION_TEST_DATA.items():
+        dbc.create(REGIONS_COLLECTION, {ID: code, **data})
+
+
 def read():
     """
-    Return a list of all regions in the test data.
+    Return regions from seDB, keyed by id, without the id inside each record.
     """
     if not is_db_up():
         print("Database is down.")
         return None
-    return REGION_TEST_DATA
+    _ensure_seeded()
+    regions = {}
+    for doc in dbc.read(REGIONS_COLLECTION):
+        code = doc.pop(ID)
+        regions[code] = doc
+    return regions
 
 
 def exists(region_code: str):
     """
-    Check if a region exists in the test data.
+    Check if a region exists in seDB.
     """
     if not is_db_up():
         print("Database is down.")
         return None
-    return region_code in REGION_TEST_DATA
+    _ensure_seeded()
+    return dbc.read_one(REGIONS_COLLECTION, {ID: region_code}) is not None
 
 
 def check_valid_region(region_code: str, name: str, population: int,

@@ -1,6 +1,6 @@
 # Database schema and local setup
 
-Application data belongs in MongoDB database `seDB`. All reads and writes go through `data/db_connect.py`. States and regions are still Python dictionaries in `states/query.py` and `regions/query.py`. Those modules do not call `data/db_connect.py` yet.
+Application data belongs in MongoDB database `seDB`. All MongoDB access goes through `data/db_connect.py`. `states.query.read()` and `regions.query.read()` load the `states` and `regions` collections. `create()` in those modules still writes the in-memory dictionaries.
 
 ## Collections
 
@@ -8,7 +8,7 @@ One collection per resource. State and region ids are 2-letter codes. Neighborho
 
 ### `states`
 
-Present today as `STATE_TEST_DATA` in `states/query.py`.
+Stored in the `states` collection. `STATE_TEST_DATA` in `states/query.py` is the seed copied in when that collection is empty.
 
 | Field | Required | Notes |
 |-------|----------|--------|
@@ -21,11 +21,11 @@ Present today as `STATE_TEST_DATA` in `states/query.py`.
 
 ### `regions`
 
-Present today as `REGION_TEST_DATA` in `regions/query.py`. A region is a multi-state area (Northeast, Southeast, Midwest), not a city.
+Stored in the `regions` collection. `REGION_TEST_DATA` in `regions/query.py` is the seed copied in when that collection is empty. A region is a multi-state area (Northeast, Southeast, Midwest), not a city.
 
 | Field | Required | Notes |
 |-------|----------|--------|
-| `id` | yes | 2-letter code, such as `NE`. Today this is the dictionary key, not a field on the record. |
+| `id` | yes | 2-letter code, such as `NE`. Stored on the document. `GET /regions` still returns a dictionary keyed by that code, and omits `id` inside each record. |
 | `name` | yes | |
 | `population` | yes | Non-negative integer |
 | `description` | yes | |
@@ -82,7 +82,7 @@ MongoDB listens on `localhost:27017`. Leave `CLOUD_MONGO` unset, or set it to `0
 
 `CLOUD_MONGO=1` connects to Atlas and requires `MONGO_PASSWD`. The connection string in `data/db_connect.py` still uses the course Atlas account. Use local MongoDB until that URI is replaced.
 
-`is_db_up()` in `data/db_connect.py` always returns true. It does not ping the server.
+`is_db_up()` calls `connect_db()` and pings the server. A failed ping makes `states.query.read()` and `regions.query.read()` return `None`, and `GET /states` and `GET /regions` respond with HTTP 503.
 
 ## Running tests
 
@@ -96,9 +96,11 @@ make all_tests
 
 `make all_tests` lints and runs pytest for `server`, `states`, and `regions`. `common.mk` sets `CLOUD_MONGO=0` for those runs. GitHub Actions runs the same `make all_tests` target on push and pull request to `main` (`.github/workflows/main.yml`). The PythonAnywhere deploy step in that workflow stays commented out.
 
+Each of those test runs uses `data/db_fixture.py`. Before a test, it clears the `states` and `regions` collections and inserts the sample rows. After the test, it clears those collections again. Local MongoDB must be running.
+
 ## Seeding
 
-No seed script exists yet. The first load should copy the mock data the API already uses.
+`states.query` and `regions.query` insert their mock dictionaries the first time a read finds an empty collection. There is no separate seed script. The rows below are what that insert writes.
 
 | Collection | Source | What to load |
 |------------|--------|----------------|

@@ -10,6 +10,7 @@ LOCAL = "0"
 CLOUD = "1"
 
 SE_DB = 'seDB'
+SERVER_SELECTION_TIMEOUT_MS = 2000
 
 client = None
 
@@ -33,19 +34,28 @@ def connect_db():
                 raise ValueError('You must set your password '
                                  + 'to use Mongo in the cloud.')
             print('Connecting to Mongo in the cloud.')
-            client = pm.MongoClient(f'mongodb+srv://gcallah:{password}'
-                                    + '@koukoumongo1.yud9b.mongodb.net/'
-                                    + '?retryWrites=true&w=majority')
+            client = pm.MongoClient(
+                f'mongodb+srv://gcallah:{password}'
+                + '@koukoumongo1.yud9b.mongodb.net/'
+                + '?retryWrites=true&w=majority',
+                serverSelectionTimeoutMS=SERVER_SELECTION_TIMEOUT_MS,
+            )
         else:
             print("Connecting to Mongo locally.")
-            client = pm.MongoClient()
+            client = pm.MongoClient(
+                serverSelectionTimeoutMS=SERVER_SELECTION_TIMEOUT_MS,
+            )
     return client
 
 
 def is_db_up():
     """
-    Returns True if the DB is up and running.
+    Return True when MongoDB accepts a ping.
     """
+    try:
+        connect_db().admin.command('ping')
+    except (pm.errors.PyMongoError, ValueError, OSError):
+        return False
     return True
 
 
@@ -79,6 +89,16 @@ def delete(collection: str, filt: dict, db=SE_DB):
     """
     print(f'{filt=}')
     del_result = client[db][collection].delete_one(filt)
+    return del_result.deleted_count
+
+
+def delete_many(collection, filt=None, db=SE_DB):
+    """
+    Delete every document matching filt. An empty filt clears the collection.
+    """
+    if filt is None:
+        filt = {}
+    del_result = client[db][collection].delete_many(filt)
     return del_result.deleted_count
 
 
