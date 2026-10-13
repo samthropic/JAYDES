@@ -128,3 +128,24 @@ class Properties(Resource):
         if properties is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {PROPERTIES_RESP: properties}
+
+
+@api.route(f'{PROPERTIES_EP}/<property_id>')
+class Property(Resource):
+    """
+    The get method will return a single property by id.
+    """
+    @api.response(HTTPStatus.OK.value, 'Success', property_model)
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def get(self, property_id):
+        """
+        The get method will return a single property by id.
+        """
+        if not pqry.is_db_up():
+            raise wz.ServiceUnavailable('Database may be down.')
+
+        property_record = pqry.read(property_id)
+        if property_record is None:
+            raise wz.NotFound(f'Property {property_id} not found.')
+        return property_record

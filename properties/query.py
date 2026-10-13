@@ -67,14 +67,29 @@ TEST_PROPERTY = {
 }
 
 
-def read():
+def read(property_id: str = None):
     """
-    Return a list of all properties in the test data.
+    Return either a list of all properties or a single property by id.
     """
     if not is_db_up():
         print("Database is down.")
         return None
-    return [{ID: property_id, **data} for property_id, data in PROPERTY_TEST_DATA.items()]
+    if property_id is None:
+        return [{ID: prop_id, **data}
+                for prop_id, data in PROPERTY_TEST_DATA.items()]
+    if property_id not in PROPERTY_TEST_DATA:
+        return None
+    return {ID: property_id, **PROPERTY_TEST_DATA[property_id]}
+
+
+def exists(property_id: str):
+    """
+    Check if a property exists in the test data.
+    """
+    if not is_db_up():
+        print("Database is down.")
+        return None
+    return property_id in PROPERTY_TEST_DATA
 
 
 def _is_non_empty_string(value):
