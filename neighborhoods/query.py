@@ -36,18 +36,24 @@ NEIGHBORHOOD_TEST_DATA = {
 }
 
 
-def read():
+def read(neighborhood_id: str = None):
     """
-    Return a list of all neighborhoods in the test data.
+    Return either a list of all neighborhoods or a single neighborhood by id.
     """
     if not is_db_up():
         print("Database is down.")
         return None
 
-    return [
-        {ID: code, **data}
-        for code, data in NEIGHBORHOOD_TEST_DATA.items()
-    ]
+    if neighborhood_id is None:
+        return [
+            {ID: code, **data}
+            for code, data in NEIGHBORHOOD_TEST_DATA.items()
+        ]
+
+    if neighborhood_id not in NEIGHBORHOOD_TEST_DATA:
+        return None
+
+    return {ID: neighborhood_id, **NEIGHBORHOOD_TEST_DATA[neighborhood_id]}
 
 
 def exists(neighborhood_id: str):

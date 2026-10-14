@@ -150,6 +150,23 @@ def test_get_properties():
         assert 'neighborhood_id' in prop
 
 
+def test_get_neighborhood_by_id():
+    valid_id = "73a1b2c3-d4e5-6f7a-8b9c-0123456789ab"
+    
+    resp = TEST_CLIENT.get(f"{ep.NEIGHBORHOODS_EP}/{valid_id}")
+    assert resp.status_code == OK
+    
+    resp_json = resp.get_json()
+    assert resp_json['id'] == valid_id
+    assert 'name' in resp_json
+    assert 'state_id' in resp_json
+
+
+def test_get_missing_neighborhood_by_id():
+    resp = TEST_CLIENT.get(f"{ep.NEIGHBORHOODS_EP}/missing-neighborhood")
+    assert resp.status_code == NOT_FOUND
+
+
 def test_get_property_by_id():
     resp = TEST_CLIENT.get(f"{ep.PROPERTIES_EP}/prop-001")
     assert resp.status_code == OK
@@ -178,4 +195,17 @@ def test_get_properties_db_unavailable(mock_is_db_up):
 @patch('properties.query.is_db_up', return_value=False, autospec=True)
 def test_get_property_by_id_db_unavailable(mock_is_db_up):
     resp = TEST_CLIENT.get(f"{ep.PROPERTIES_EP}/prop-001")
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+@patch('neighborhoods.query.is_db_up', return_value=False, autospec=True)
+def test_get_neighborhoods_db_unavailable(mock_is_db_up):
+    resp = TEST_CLIENT.get(ep.NEIGHBORHOODS_EP)
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+@patch('neighborhoods.query.is_db_up', return_value=False, autospec=True)
+def test_get_neighborhood_by_id_db_unavailable(mock_is_db_up):
+    dummy_id = "11111111-1111-1111-1111-111111111111"
+    resp = TEST_CLIENT.get(f"{ep.NEIGHBORHOODS_EP}/{dummy_id}")
     assert resp.status_code == SERVICE_UNAVAILABLE

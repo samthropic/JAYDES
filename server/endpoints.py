@@ -203,6 +203,27 @@ class Neighborhoods(Resource):
         return {NEIGHBORHOODS_RESP: neighborhoods}
 
 
+@api.route(f'{NEIGHBORHOODS_EP}/<neighborhood_id>')
+class Neighborhood(Resource):
+    """
+    The get method will return a single neighborhood by id.
+    """
+    @api.response(HTTPStatus.OK.value, 'Success', neighborhood_model)
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def get(self, neighborhood_id):
+        """
+        The get method will return a single neighborhood by id.
+        """
+        if not nqry.is_db_up():
+            raise wz.ServiceUnavailable('Database may be down.')
+
+        neighborhood = nqry.read(neighborhood_id)
+        if neighborhood is None:
+            raise wz.NotFound(f'Neighborhood {neighborhood_id} not found.')
+        return neighborhood
+
+
 @api.route(PROPERTIES_EP)
 class Properties(Resource):
     """
