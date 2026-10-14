@@ -9,6 +9,7 @@ from flask_restx import Resource, Api, fields  # Namespace
 from flask_cors import CORS
 
 import properties.query as pqry
+import neighborhoods.query as nqry
 import regions.query as rqry
 
 import werkzeug.exceptions as wz
@@ -31,6 +32,8 @@ REGIONS_EP = '/regions'
 REGIONS_RESP = 'Regions:'
 PROPERTIES_EP = '/properties'
 PROPERTIES_RESP = 'Properties:'
+NEIGHBORHOODS_EP = '/neighborhoods'
+NEIGHBORHOODS_RESP = 'Neighborhoods:'
 
 state_model = api.model('State', {
     sqry.ID: fields.String(description='Two-letter state code', example='NY'),
@@ -49,6 +52,14 @@ state_input_model = api.model('StateInput', {
     'area_sq_miles': fields.Float(required=True),
     'region_id': fields.String(description='Id of an existing region',
                                example='NE'),
+})
+
+neighborhood_model = api.model('Neighborhood', {
+    nqry.ID: fields.String(description='Neighborhood UUID'),
+    'name': fields.String(description='Neighborhood name',
+                          example='Greenwich Village'),
+    'state_id': fields.String(description='Two-letter state code',
+                              example='NY'),
 })
 
 property_model = api.model('Property', {
@@ -173,6 +184,23 @@ class Regions(Resource):
         if regions is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {REGIONS_RESP: regions}
+
+
+@api.route(NEIGHBORHOODS_EP)
+class Neighborhoods(Resource):
+    """
+    The get method will return a list of all neighborhoods in the database.
+    """
+    @api.response(HTTPStatus.OK.value, 'Success', [neighborhood_model])
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def get(self):
+        """
+        The get method will return a list of all neighborhoods in the database.
+        """
+        neighborhoods = nqry.read()
+        if neighborhoods is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        return {NEIGHBORHOODS_RESP: neighborhoods}
 
 
 @api.route(PROPERTIES_EP)

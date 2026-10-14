@@ -123,6 +123,18 @@ def test_get_regions():
     assert ep.REGIONS_RESP in resp_json
     assert isinstance(resp_json[ep.REGIONS_RESP], dict)
 
+def test_get_neighborhoods():
+    resp = TEST_CLIENT.get(ep.NEIGHBORHOODS_EP)
+    assert resp.status_code == OK
+    resp_json = resp.get_json()
+    assert ep.NEIGHBORHOODS_RESP in resp_json
+    neighborhoods = resp_json[ep.NEIGHBORHOODS_RESP]
+    assert isinstance(neighborhoods, list)
+    assert len(neighborhoods) > 0
+    for neighborhood in neighborhoods:
+        assert 'id' in neighborhood
+        assert 'name' in neighborhood
+        assert 'state_id' in neighborhood
 
 def test_get_properties():
     resp = TEST_CLIENT.get(ep.PROPERTIES_EP)
