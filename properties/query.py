@@ -108,7 +108,7 @@ def check_valid_property(property_id: str, address: str,
                          latitude: float, longitude: float):
     if not _is_non_empty_string(property_id):
         raise ValueError("Property id must be a non-empty string.")
-    if property_id in PROPERTY_TEST_DATA:
+    if exists(property_id):
         raise ValueError(f"Property id {property_id} already exists.")
     if not _is_non_empty_string(address):
         raise ValueError("Property address must be a non-empty string.")

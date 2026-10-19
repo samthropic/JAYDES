@@ -1,14 +1,42 @@
+from unittest.mock import patch
+
 import pytest
 
 import properties.query as qry
 
-TEST_PROP = qry.TEST_PROPERTY
+PROPERTY_TEST_DATA = {
+    "prop-001": {
+        "address": "125 Perry Street, New York, NY",
+        "neighborhood_id": "manhattan-west-village",
+        "price": 1850000,
+        "bedrooms": 2,
+        "bathrooms": 2,
+        "latitude": 40.7358,
+        "longitude": -74.0068,
+    },
+}
 
 
-def test_check_valid_property():
-    assert qry.check_valid_property(**TEST_PROP)
+@pytest.fixture
+def test_property():
+    return {
+        "property_id": "prop-test",
+        "address": "1 Test Street, Test City, NY",
+        "neighborhood_id": "test-neighborhood",
+        "price": 250000,
+        "bedrooms": 3,
+        "bathrooms": 2,
+        "latitude": 40.7128,
+        "longitude": -74.0060,
+    }
 
 
+@patch.object(qry, "PROPERTY_TEST_DATA", PROPERTY_TEST_DATA)
+def test_check_valid_property(test_property):
+    assert qry.check_valid_property(**test_property)
+
+
+@patch.object(qry, "PROPERTY_TEST_DATA", PROPERTY_TEST_DATA)
 def test_each_property_has_required_fields():
     required_fields = {
         "address",
@@ -28,6 +56,7 @@ def test_each_property_has_required_fields():
         assert property_data["neighborhood_id"]
 
 
+@patch.object(qry, "PROPERTY_TEST_DATA", PROPERTY_TEST_DATA)
 def test_property_exists_and_read_returns_record():
     assert qry.exists("prop-001")
     prop = qry.read("prop-001")
@@ -35,17 +64,31 @@ def test_property_exists_and_read_returns_record():
     assert prop["address"]
 
 
+@patch.object(qry, "PROPERTY_TEST_DATA", PROPERTY_TEST_DATA)
 def test_read_missing_property_returns_none():
     assert qry.read("missing-prop") is None
 
-
 @pytest.mark.parametrize(
     "property_id",
-    [pytest.param("", id="empty"), pytest.param("prop-001", id="duplicate")],
+    [
+        pytest.param("", id="empty"),
+        pytest.param(
+            "prop-001",
+            id="duplicate",
+            marks=pytest.mark.skip(reason="Covered by the patched duplicate-id test."),
+        ),
+    ],
 )
-def test_check_valid_property_invalid_id(property_id):
+@patch.object(qry, "PROPERTY_TEST_DATA", PROPERTY_TEST_DATA)
+def test_check_valid_property_invalid_id(property_id, test_property):
     with pytest.raises(ValueError):
-        qry.check_valid_property(**{**TEST_PROP, "property_id": property_id})
+        qry.check_valid_property(**{**test_property, "property_id": property_id})
+
+
+@patch.object(qry, "PROPERTY_TEST_DATA", {"prop-test": {}})
+def test_check_valid_property_duplicate_id(test_property):
+    with pytest.raises(ValueError):
+        qry.check_valid_property(**test_property)
 
 
 @pytest.mark.parametrize(
@@ -55,9 +98,10 @@ def test_check_valid_property_invalid_id(property_id):
         pytest.param("neighborhood_id", "", id="neighborhood-id"),
     ],
 )
-def test_check_valid_property_empty_required_text(field, value):
+@patch.object(qry, "PROPERTY_TEST_DATA", PROPERTY_TEST_DATA)
+def test_check_valid_property_empty_required_text(field, value, test_property):
     with pytest.raises(ValueError):
-        qry.check_valid_property(**{**TEST_PROP, field: value})
+        qry.check_valid_property(**{**test_property, field: value})
 
 
 @pytest.mark.parametrize(
@@ -74,9 +118,10 @@ def test_check_valid_property_empty_required_text(field, value):
         pytest.param("bathrooms", float("inf"), id="infinite-bathrooms"),
     ],
 )
-def test_check_valid_property_bad_numeric_fields(field, value):
+@patch.object(qry, "PROPERTY_TEST_DATA", PROPERTY_TEST_DATA)
+def test_check_valid_property_bad_numeric_fields(field, value, test_property):
     with pytest.raises(ValueError):
-        qry.check_valid_property(**{**TEST_PROP, field: value})
+        qry.check_valid_property(**{**test_property, field: value})
 
 
 @pytest.mark.parametrize(
@@ -88,6 +133,7 @@ def test_check_valid_property_bad_numeric_fields(field, value):
         pytest.param("longitude", float("inf"), id="infinite-longitude"),
     ],
 )
-def test_check_valid_property_bad_coordinates(field, value):
+@patch.object(qry, "PROPERTY_TEST_DATA", PROPERTY_TEST_DATA)
+def test_check_valid_property_bad_coordinates(field, value, test_property):
     with pytest.raises(ValueError):
-        qry.check_valid_property(**{**TEST_PROP, field: value})
+        qry.check_valid_property(**{**test_property, field: value})
