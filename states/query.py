@@ -156,6 +156,18 @@ def create(
     return STATE_TEST_DATA[state_code]
 
 
+def delete(state_code: str):
+    """
+    Delete a state from seDB. Return True if it was deleted, False if there
+    is no such state, and None if the database is down.
+    """
+    if not is_db_up():
+        print("Database is down.")
+        return None
+    _ensure_seeded()
+    return dbc.delete(STATES_COLLECTION, {ID: state_code}) > 0
+
+
 def main():
     states = read()
     for data in states:

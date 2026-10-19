@@ -80,6 +80,15 @@ def test_read_one_not_found():
     assert qry.read_one('ZZ') is None
 
 
+def test_delete():
+    assert qry.delete('AL') is True
+    assert qry.read_one('AL') is None
+
+
+def test_delete_not_found():
+    assert qry.delete('ZZ') is False
+
+
 def test_query():
     states = qry.read()
     assert isinstance(states, list)
