@@ -69,50 +69,55 @@ def test_get_state_by_id_db_unavailable(mock_is_db_up):
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
-NEW_STATE = {
-    'id': 'TS',
-    'name': 'Test State',
-    'capital': 'Test Capital',
-    'population': 1000000,
-    'area_sq_miles': 50000,
-    'region_id': 'NE',
-}
+@pytest.fixture
+def new_state():
+    """A valid state that is not in the sample data."""
+    return {
+        'id': 'TS',
+        'name': 'Test State',
+        'capital': 'Test Capital',
+        'population': 1000000,
+        'area_sq_miles': 50000,
+        'region_id': 'NE',
+    }
 
 
-def test_post_state():
+def test_post_state(new_state):
     with patch.dict(sqry.STATE_TEST_DATA):
-        resp = TEST_CLIENT.post(ep.STATES_EP, json=NEW_STATE)
+        resp = TEST_CLIENT.post(ep.STATES_EP, json=new_state)
     assert resp.status_code == CREATED
     state = resp.get_json()[ep.STATE_RESP]
-    assert state['id'] == NEW_STATE['id']
-    assert state['name'] == NEW_STATE['name']
+    assert state['id'] == new_state['id']
+    assert state['name'] == new_state['name']
 
 
-def test_post_state_already_exists():
-    resp = TEST_CLIENT.post(ep.STATES_EP, json={**NEW_STATE, 'id': 'AL'})
+def test_post_state_already_exists(new_state):
+    new_state['id'] = 'AL'
+    resp = TEST_CLIENT.post(ep.STATES_EP, json=new_state)
     assert resp.status_code == CONFLICT
 
 
-def test_post_state_bad_code():
-    resp = TEST_CLIENT.post(ep.STATES_EP, json={**NEW_STATE, 'id': 'TOO'})
+def test_post_state_bad_code(new_state):
+    new_state['id'] = 'TOO'
+    resp = TEST_CLIENT.post(ep.STATES_EP, json=new_state)
     assert resp.status_code == BAD_REQUEST
 
 
-def test_post_state_unknown_region():
-    resp = TEST_CLIENT.post(ep.STATES_EP, json={**NEW_STATE,
-                                                'region_id': 'ZZ'})
+def test_post_state_unknown_region(new_state):
+    new_state['region_id'] = 'ZZ'
+    resp = TEST_CLIENT.post(ep.STATES_EP, json=new_state)
     assert resp.status_code == BAD_REQUEST
 
 
-def test_post_state_missing_field():
-    bad_state = {k: v for k, v in NEW_STATE.items() if k != 'name'}
-    resp = TEST_CLIENT.post(ep.STATES_EP, json=bad_state)
+def test_post_state_missing_field(new_state):
+    del new_state['name']
+    resp = TEST_CLIENT.post(ep.STATES_EP, json=new_state)
     assert resp.status_code == BAD_REQUEST
 
 
 @patch('states.query.is_db_up', return_value=False, autospec=True)
-def test_post_state_db_unavailable(mock_is_db_up):
-    resp = TEST_CLIENT.post(ep.STATES_EP, json=NEW_STATE)
+def test_post_state_db_unavailable(mock_is_db_up, new_state):
+    resp = TEST_CLIENT.post(ep.STATES_EP, json=new_state)
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
