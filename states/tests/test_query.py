@@ -1,3 +1,5 @@
+import sys
+
 import pytest
 
 import states.query as qry
@@ -53,6 +55,18 @@ def test_check_valid_state_code_too_long():
                               TEST_ST['area_sq_miles'],
                               TEST_ST['name'],
                               TEST_ST['region_id'])
+
+
+@pytest.mark.skipif(sys.version_info < (3, 9),
+                    reason='The project requires Python 3.9 or newer.')
+def test_create_unknown_region():
+    with pytest.raises(ValueError, match='does not exist'):
+        qry.create(TEST_ST['state_code'],
+                   TEST_ST['population'],
+                   TEST_ST['capital'],
+                   TEST_ST['area_sq_miles'],
+                   TEST_ST['name'],
+                   'ZZ')
 
 
 def test_read_one():
