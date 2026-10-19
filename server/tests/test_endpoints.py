@@ -3,6 +3,7 @@ from http.client import (
     CONFLICT,
     CREATED,
     FORBIDDEN,
+    NO_CONTENT,
     NOT_ACCEPTABLE,
     NOT_FOUND,
     OK,
@@ -66,6 +67,24 @@ def test_get_missing_state_by_id():
 @patch('states.query.is_db_up', return_value=False, autospec=True)
 def test_get_state_by_id_db_unavailable(mock_is_db_up):
     resp = TEST_CLIENT.get(f'{ep.STATES_EP}/AL')
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+def test_delete_state():
+    resp = TEST_CLIENT.delete(f'{ep.STATES_EP}/AL')
+    assert resp.status_code == NO_CONTENT
+    resp = TEST_CLIENT.get(f'{ep.STATES_EP}/AL')
+    assert resp.status_code == NOT_FOUND
+
+
+def test_delete_missing_state():
+    resp = TEST_CLIENT.delete(f'{ep.STATES_EP}/ZZ')
+    assert resp.status_code == NOT_FOUND
+
+
+@patch('states.query.is_db_up', return_value=False, autospec=True)
+def test_delete_state_db_unavailable(mock_is_db_up):
+    resp = TEST_CLIENT.delete(f'{ep.STATES_EP}/AL')
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 

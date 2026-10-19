@@ -168,6 +168,20 @@ class State(Resource):
             raise wz.NotFound(f'State {state_id} not found.')
         return {STATE_RESP: state}
 
+    @api.response(HTTPStatus.NO_CONTENT.value, 'Deleted')
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def delete(self, state_id):
+        """
+        The delete method will delete a state by its two-letter code.
+        """
+        if not sqry.is_db_up():
+            raise wz.ServiceUnavailable('Database may be down.')
+
+        if not sqry.delete(state_id):
+            raise wz.NotFound(f'State {state_id} not found.')
+        return '', HTTPStatus.NO_CONTENT
+
 
 @api.route(REGIONS_EP)
 class Regions(Resource):

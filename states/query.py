@@ -8,6 +8,8 @@ import regions.query as rqry
 STATE_CODE_LEN = 2
 ID = 'id'
 STATES_COLLECTION = 'states'
+UPDATABLE_FIELDS = ('name', 'capital', 'population', 'area_sq_miles',
+                    'region_id')
 
 TEST_STATE = {
     "state_code": "TS",
@@ -154,6 +156,43 @@ def create(
         "region_id": region_id,
     }
     return STATE_TEST_DATA[state_code]
+
+
+def update(state_code: str, changes: dict):
+    """
+    Change fields of an existing state in seDB and return the updated state.
+    Return None if there is no such state or the database is down. Raise
+    ValueError if the changes are not valid.
+    """
+    if not is_db_up():
+        print("Database is down.")
+        return None
+    unknown = set(changes) - set(UPDATABLE_FIELDS)
+    if unknown:
+        raise ValueError(f"Cannot update fields: {sorted(unknown)}.")
+    population = changes.get('population', 0)
+    if not isinstance(population, int) or population < 0:
+        raise ValueError("Population must be a non-negative integer.")
+    region_id = changes.get('region_id')
+    if region_id is not None and not rqry.exists(region_id):
+        raise ValueError(f"Region ID '{region_id}' does not exist.")
+    if not exists(state_code):
+        return None
+    if changes:
+        dbc.update(STATES_COLLECTION, {ID: state_code}, changes)
+    return read_one(state_code)
+
+
+def delete(state_code: str):
+    """
+    Delete a state from seDB. Return True if it was deleted, False if there
+    is no such state, and None if the database is down.
+    """
+    if not is_db_up():
+        print("Database is down.")
+        return None
+    _ensure_seeded()
+    return dbc.delete(STATES_COLLECTION, {ID: state_code}) > 0
 
 
 def main():

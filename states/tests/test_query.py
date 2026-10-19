@@ -80,6 +80,41 @@ def test_read_one_not_found():
     assert qry.read_one('ZZ') is None
 
 
+def test_update():
+    state = qry.update('AL', {'capital': 'Birmingham', 'population': 5})
+    assert state['capital'] == 'Birmingham'
+    assert state['population'] == 5
+    assert qry.read_one('AL')['capital'] == 'Birmingham'
+
+
+def test_update_not_found():
+    assert qry.update('ZZ', {'capital': 'Nowhere'}) is None
+
+
+def test_update_unknown_field():
+    with pytest.raises(ValueError):
+        qry.update('AL', {'flag': 'red'})
+
+
+def test_update_bad_population():
+    with pytest.raises(ValueError):
+        qry.update('AL', {'population': -1})
+
+
+def test_update_unknown_region():
+    with pytest.raises(ValueError):
+        qry.update('AL', {'region_id': 'ZZ'})
+
+
+def test_delete():
+    assert qry.delete('AL') is True
+    assert qry.read_one('AL') is None
+
+
+def test_delete_not_found():
+    assert qry.delete('ZZ') is False
+
+
 def test_query():
     states = qry.read()
     assert isinstance(states, list)
