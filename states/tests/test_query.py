@@ -47,3 +47,15 @@ def test_query():
     for state in states:
         assert isinstance(state[qry.ID], str)
         assert len(state[qry.ID]) == qry.STATE_CODE_LEN
+
+
+@pytest.mark.skip(reason='create() writes the in-memory dictionary, not seDB')
+def test_create_is_readable_from_db():
+    qry.create(TEST_ST['state_code'],
+               TEST_ST['population'],
+               TEST_ST['capital'],
+               TEST_ST['area_sq_miles'],
+               TEST_ST['name'])
+    states = qry.read()
+    ids = [state[qry.ID] for state in states]
+    assert TEST_ST['state_code'] in ids
