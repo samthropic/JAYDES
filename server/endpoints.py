@@ -32,6 +32,7 @@ REGIONS_EP = '/regions'
 REGIONS_RESP = 'Regions:'
 PROPERTIES_EP = '/properties'
 PROPERTIES_RESP = 'Properties:'
+PROPERTY_RESP = 'Property:'
 NEIGHBORHOODS_EP = '/neighborhoods'
 NEIGHBORHOODS_RESP = 'Neighborhoods:'
 
@@ -73,9 +74,20 @@ neighborhood_input_model = api.model('NeighborhoodInput', {
 })
 
 property_model = api.model('Property', {
-    'id': fields.String(description='Property id'),
-    'address': fields.String(description='Property address',
+    'id': fields.String(required=True, description='Property id'),
+    'address': fields.String(required=True, description='Property address',
                              example='125 Perry Street, New York, NY'),
+    'neighborhood_id': fields.String(required=True,
+                                     description='Neighborhood id'),
+    'price': fields.Float(required=True, description='Price'),
+    'bedrooms': fields.Integer(required=True, description='Bedroom count'),
+    'bathrooms': fields.Float(required=True, description='Bathroom count'),
+    'latitude': fields.Float(required=True, description='Latitude'),
+    'longitude': fields.Float(required=True, description='Longitude'),
+})
+
+property_update_model = api.model('PropertyUpdate', {
+    'address': fields.String(description='Property address'),
     'neighborhood_id': fields.String(description='Neighborhood id'),
     'price': fields.Float(description='Price'),
     'bedrooms': fields.Integer(description='Bedroom count'),
@@ -298,6 +310,34 @@ class Properties(Resource):
             raise wz.ServiceUnavailable('Database may be down.')
         return {PROPERTIES_RESP: properties}
 
+    @api.expect(property_model, validate=True)
+    @api.response(HTTPStatus.CREATED.value, 'Created', property_model)
+    @api.response(HTTPStatus.BAD_REQUEST.value, 'Invalid property data')
+    @api.response(HTTPStatus.CONFLICT.value, 'Property already exists')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def post(self):
+        """Create a property associated with an existing neighborhood."""
+        data = api.payload
+        if not pqry.is_db_up():
+            raise wz.ServiceUnavailable('Database may be down.')
+        if pqry.exists(data['id']):
+            raise wz.Conflict(f"Property {data['id']} already exists.")
+
+        try:
+            property_record = pqry.create(
+                data['id'],
+                data['address'],
+                data['neighborhood_id'],
+                data['price'],
+                data['bedrooms'],
+                data['bathrooms'],
+                data['latitude'],
+                data['longitude'],
+            )
+        except ValueError as err:
+            raise wz.BadRequest(str(err))
+        return {PROPERTY_RESP: property_record}, HTTPStatus.CREATED
+
 
 @api.route(f'{PROPERTIES_EP}/<property_id>')
 class Property(Resource):
@@ -318,3 +358,34 @@ class Property(Resource):
         if property_record is None:
             raise wz.NotFound(f'Property {property_id} not found.')
         return property_record
+
+    @api.expect(property_update_model, validate=True)
+    @api.response(HTTPStatus.OK.value, 'Updated', property_model)
+    @api.response(HTTPStatus.BAD_REQUEST.value, 'Invalid property data')
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def patch(self, property_id):
+        """Update one or more fields on a property."""
+        if not pqry.is_db_up():
+            raise wz.ServiceUnavailable('Database may be down.')
+        changes = api.payload or {}
+        if not changes:
+            raise wz.BadRequest('At least one property field is required.')
+        try:
+            property_record = pqry.update(property_id, changes)
+        except ValueError as err:
+            raise wz.BadRequest(str(err))
+        if property_record is None:
+            raise wz.NotFound(f'Property {property_id} not found.')
+        return {PROPERTY_RESP: property_record}
+
+    @api.response(HTTPStatus.NO_CONTENT.value, 'Deleted')
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def delete(self, property_id):
+        """Delete one property by id."""
+        if not pqry.is_db_up():
+            raise wz.ServiceUnavailable('Database may be down.')
+        if not pqry.delete(property_id):
+            raise wz.NotFound(f'Property {property_id} not found.')
+        return '', HTTPStatus.NO_CONTENT
