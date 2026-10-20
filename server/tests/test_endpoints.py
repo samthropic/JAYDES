@@ -16,6 +16,7 @@ import pytest
 
 from server import endpoints as ep
 import states.query as sqry
+import neighborhoods.query as nqry
 
 TEST_CLIENT = ep.app.test_client()
 
@@ -147,6 +148,17 @@ def test_get_regions():
     assert ep.REGIONS_RESP in resp_json
     assert isinstance(resp_json[ep.REGIONS_RESP], dict)
 
+
+@pytest.fixture
+def new_neighborhood():
+    """A valid neighborhood that is not in the sample data."""
+    return {
+        'id': '11112222-3333-4444-5555-666677778888',
+        'name': 'Test POST Neighborhood',
+        'state_id': 'AL'
+    }
+
+
 def test_get_neighborhoods():
     resp = TEST_CLIENT.get(ep.NEIGHBORHOODS_EP)
     assert resp.status_code == OK
@@ -160,18 +172,57 @@ def test_get_neighborhoods():
         assert 'name' in neighborhood
         assert 'state_id' in neighborhood
 
-def test_get_properties():
-    resp = TEST_CLIENT.get(ep.PROPERTIES_EP)
-    assert resp.status_code == OK
-    resp_json = resp.get_json()
-    assert ep.PROPERTIES_RESP in resp_json
-    properties = resp_json[ep.PROPERTIES_RESP]
-    assert isinstance(properties, list)
-    assert len(properties) > 0
-    for prop in properties:
-        assert 'id' in prop
-        assert 'address' in prop
-        assert 'neighborhood_id' in prop
+
+def test_post_neighborhood(new_neighborhood):
+    with patch.dict(nqry.NEIGHBORHOOD_TEST_DATA):
+        resp = TEST_CLIENT.post(ep.NEIGHBORHOODS_EP, json=new_neighborhood)
+    
+    assert resp.status_code == CREATED
+    data = resp.get_json()['Neighborhood']
+    assert data['id'] == new_neighborhood['id']
+    assert data['name'] == new_neighborhood['name']
+    assert data['state_id'] == new_neighborhood['state_id']
+
+
+def test_post_neighborhood_missing_optional_name(new_neighborhood):
+    del new_neighborhood['name']
+    
+    with patch.dict(nqry.NEIGHBORHOOD_TEST_DATA):
+        resp = TEST_CLIENT.post(ep.NEIGHBORHOODS_EP, json=new_neighborhood)
+        
+    assert resp.status_code == CREATED
+    data = resp.get_json()['Neighborhood']
+    assert data['name'] == 'Unnamed Neighborhood'
+
+
+def test_post_neighborhood_already_exists(new_neighborhood):
+    new_neighborhood['id'] = '73a1b2c3-d4e5-6f7a-8b9c-0123456789ab'
+    resp = TEST_CLIENT.post(ep.NEIGHBORHOODS_EP, json=new_neighborhood)
+    assert resp.status_code == CONFLICT
+
+
+def test_post_neighborhood_missing_id(new_neighborhood):
+    del new_neighborhood['id']
+    resp = TEST_CLIENT.post(ep.NEIGHBORHOODS_EP, json=new_neighborhood)
+    assert resp.status_code == BAD_REQUEST
+
+
+def test_post_neighborhood_missing_state(new_neighborhood):
+    del new_neighborhood['state_id']
+    resp = TEST_CLIENT.post(ep.NEIGHBORHOODS_EP, json=new_neighborhood)
+    assert resp.status_code == BAD_REQUEST
+
+
+def test_post_neighborhood_bad_id_format(new_neighborhood):
+    new_neighborhood['id'] = 'too-short'
+    resp = TEST_CLIENT.post(ep.NEIGHBORHOODS_EP, json=new_neighborhood)
+    assert resp.status_code == BAD_REQUEST
+
+
+def test_post_neighborhood_unknown_state(new_neighborhood):
+    new_neighborhood['state_id'] = 'ZZ'
+    resp = TEST_CLIENT.post(ep.NEIGHBORHOODS_EP, json=new_neighborhood)
+    assert resp.status_code == BAD_REQUEST
 
 
 def test_get_neighborhood_by_id():
@@ -189,6 +240,20 @@ def test_get_neighborhood_by_id():
 def test_get_missing_neighborhood_by_id():
     resp = TEST_CLIENT.get(f"{ep.NEIGHBORHOODS_EP}/missing-neighborhood")
     assert resp.status_code == NOT_FOUND
+
+
+def test_get_properties():
+    resp = TEST_CLIENT.get(ep.PROPERTIES_EP)
+    assert resp.status_code == OK
+    resp_json = resp.get_json()
+    assert ep.PROPERTIES_RESP in resp_json
+    properties = resp_json[ep.PROPERTIES_RESP]
+    assert isinstance(properties, list)
+    assert len(properties) > 0
+    for prop in properties:
+        assert 'id' in prop
+        assert 'address' in prop
+        assert 'neighborhood_id' in prop
 
 
 def test_get_property_by_id():
@@ -232,4 +297,9 @@ def test_get_neighborhoods_db_unavailable(mock_is_db_up):
 def test_get_neighborhood_by_id_db_unavailable(mock_is_db_up):
     dummy_id = "11111111-1111-1111-1111-111111111111"
     resp = TEST_CLIENT.get(f"{ep.NEIGHBORHOODS_EP}/{dummy_id}")
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+@patch('neighborhoods.query.is_db_up', return_value=False, autospec=True)
+def test_post_neighborhood_db_unavailable(mock_is_db_up, new_neighborhood):
+    resp = TEST_CLIENT.post(ep.NEIGHBORHOODS_EP, json=new_neighborhood)
     assert resp.status_code == SERVICE_UNAVAILABLE

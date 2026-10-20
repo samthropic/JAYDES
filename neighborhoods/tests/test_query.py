@@ -2,7 +2,6 @@ from unittest.mock import patch
 import pytest
 
 import neighborhoods.query as qry
-from states.query import STATE_CODE_LEN
 import states.query as state_qry
 
 MOCK_NEIGHBORHOOD_DATA = {

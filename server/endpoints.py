@@ -62,6 +62,16 @@ neighborhood_model = api.model('Neighborhood', {
                               example='NY'),
 })
 
+neighborhood_input_model = api.model('NeighborhoodInput', {
+    nqry.ID: fields.String(required=True, description='Neighborhood UUID',
+                           example='550e8400-e29b-41d4-a716-446655440000'),
+    'name': fields.String(description='Neighborhood name',
+                          example='Greenwich Village'),
+    'state_id': fields.String(required=True,
+                              description='Two-letter state code',
+                              example='NY'),
+})
+
 property_model = api.model('Property', {
     'id': fields.String(description='Property id'),
     'address': fields.String(description='Property address',
@@ -215,6 +225,40 @@ class Neighborhoods(Resource):
         if neighborhoods is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {NEIGHBORHOODS_RESP: neighborhoods}
+
+    @api.expect(neighborhood_input_model, validate=True)
+    @api.response(HTTPStatus.CREATED.value, 'Created', neighborhood_model)
+    @api.response(HTTPStatus.BAD_REQUEST.value, 'Invalid neighborhood data')
+    @api.response(HTTPStatus.CONFLICT.value, 'Neighborhood already exists')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def post(self):
+        """
+        The post method will create a new neighborhood.
+        """
+        data = api.payload
+        if not nqry.is_db_up():
+            raise wz.ServiceUnavailable('Database may be down.')
+
+        neighborhood_id = data[nqry.ID]
+
+        if nqry.exists(neighborhood_id):
+            raise wz.Conflict(
+                f'Neighborhood {neighborhood_id} already exists.'
+            )
+
+        state_id = data['state_id']
+        name = data.get('name', 'Unnamed Neighborhood')
+
+        try:
+            neighborhood = nqry.create(
+                neighborhood_id,
+                name,
+                state_id
+            )
+        except ValueError as err:
+            raise wz.BadRequest(str(err))
+
+        return {'Neighborhood': neighborhood}, HTTPStatus.CREATED
 
 
 @api.route(f'{NEIGHBORHOODS_EP}/<neighborhood_id>')
