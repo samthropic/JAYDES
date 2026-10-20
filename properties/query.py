@@ -3,7 +3,6 @@
 import math
 
 from data.db_connect import is_db_up
-import neighborhoods.query as nqry
 
 ID = "id"
 
@@ -115,8 +114,6 @@ def check_valid_property(property_id: str, address: str,
         raise ValueError("Property address must be a non-empty string.")
     if not _is_non_empty_string(neighborhood_id):
         raise ValueError("Neighborhood id must be a non-empty string.")
-    if not nqry.exists(neighborhood_id):
-        raise ValueError(f"Neighborhood id {neighborhood_id} does not exist.")
     if not _is_number(price) or price < 0:
         raise ValueError("Price must be a non-negative number.")
     if (not isinstance(bedrooms, int) or isinstance(bedrooms, bool)
@@ -129,27 +126,3 @@ def check_valid_property(property_id: str, address: str,
     if not _is_number(longitude) or not -180 <= longitude <= 180:
         raise ValueError("Longitude must be between -180 and 180.")
     return True
-
-
-def create(property_id: str, address: str, neighborhood_id: str,
-           price: float, bedrooms: int, bathrooms: float,
-           latitude: float, longitude: float):
-    """Create a property record in the in-memory test data."""
-    check_valid_property(
-        property_id, address, neighborhood_id, price, bedrooms, bathrooms,
-        latitude, longitude,
-    )
-    if not is_db_up():
-        print("Database is down.")
-        return None
-
-    PROPERTY_TEST_DATA[property_id] = {
-        "address": address,
-        "neighborhood_id": neighborhood_id,
-        "price": price,
-        "bedrooms": bedrooms,
-        "bathrooms": bathrooms,
-        "latitude": latitude,
-        "longitude": longitude,
-    }
-    return {ID: property_id, **PROPERTY_TEST_DATA[property_id]}

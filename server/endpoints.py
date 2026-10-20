@@ -32,7 +32,6 @@ REGIONS_EP = '/regions'
 REGIONS_RESP = 'Regions:'
 PROPERTIES_EP = '/properties'
 PROPERTIES_RESP = 'Properties:'
-PROPERTY_RESP = 'Property:'
 NEIGHBORHOODS_EP = '/neighborhoods'
 NEIGHBORHOODS_RESP = 'Neighborhoods:'
 
@@ -64,16 +63,15 @@ neighborhood_model = api.model('Neighborhood', {
 })
 
 property_model = api.model('Property', {
-    'id': fields.String(required=True, description='Property id'),
-    'address': fields.String(required=True, description='Property address',
+    'id': fields.String(description='Property id'),
+    'address': fields.String(description='Property address',
                              example='125 Perry Street, New York, NY'),
-    'neighborhood_id': fields.String(required=True,
-                                     description='Neighborhood id'),
-    'price': fields.Float(required=True, description='Price'),
-    'bedrooms': fields.Integer(required=True, description='Bedroom count'),
-    'bathrooms': fields.Float(required=True, description='Bathroom count'),
-    'latitude': fields.Float(required=True, description='Latitude'),
-    'longitude': fields.Float(required=True, description='Longitude'),
+    'neighborhood_id': fields.String(description='Neighborhood id'),
+    'price': fields.Float(description='Price'),
+    'bedrooms': fields.Integer(description='Bedroom count'),
+    'bathrooms': fields.Float(description='Bathroom count'),
+    'latitude': fields.Float(description='Latitude'),
+    'longitude': fields.Float(description='Longitude'),
 })
 
 
@@ -170,6 +168,20 @@ class State(Resource):
             raise wz.NotFound(f'State {state_id} not found.')
         return {STATE_RESP: state}
 
+    @api.response(HTTPStatus.NO_CONTENT.value, 'Deleted')
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def delete(self, state_id):
+        """
+        The delete method will delete a state by its two-letter code.
+        """
+        if not sqry.is_db_up():
+            raise wz.ServiceUnavailable('Database may be down.')
+
+        if not sqry.delete(state_id):
+            raise wz.NotFound(f'State {state_id} not found.')
+        return '', HTTPStatus.NO_CONTENT
+
 
 @api.route(REGIONS_EP)
 class Regions(Resource):
@@ -241,34 +253,6 @@ class Properties(Resource):
         if properties is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {PROPERTIES_RESP: properties}
-
-    @api.expect(property_model, validate=True)
-    @api.response(HTTPStatus.CREATED.value, 'Created', property_model)
-    @api.response(HTTPStatus.BAD_REQUEST.value, 'Invalid property data')
-    @api.response(HTTPStatus.CONFLICT.value, 'Property already exists')
-    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
-    def post(self):
-        """Create a property associated with an existing neighborhood."""
-        data = api.payload
-        if not pqry.is_db_up():
-            raise wz.ServiceUnavailable('Database may be down.')
-        if pqry.exists(data['id']):
-            raise wz.Conflict(f"Property {data['id']} already exists.")
-
-        try:
-            property_record = pqry.create(
-                data['id'],
-                data['address'],
-                data['neighborhood_id'],
-                data['price'],
-                data['bedrooms'],
-                data['bathrooms'],
-                data['latitude'],
-                data['longitude'],
-            )
-        except ValueError as err:
-            raise wz.BadRequest(str(err))
-        return {PROPERTY_RESP: property_record}, HTTPStatus.CREATED
 
 
 @api.route(f'{PROPERTIES_EP}/<property_id>')
