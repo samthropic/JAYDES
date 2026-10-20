@@ -58,6 +58,19 @@ def read():
         regions[code] = doc
     return regions
 
+def read_one(region_code: str):
+    """
+    Return a single region by code, or None if absent or DB is down.
+    """
+    if not is_db_up():
+        print("Database is down.")
+        return None
+    _ensure_seeded()
+    region = dbc.read_one(REGIONS_COLLECTION, {ID: region_code})
+    if region is not None:
+        region.pop(dbc.MONGO_ID, None)
+    return region
+
 
 def exists(region_code: str):
     """
@@ -105,33 +118,28 @@ def create(region_code: str, name: str, population: int,
 
 def update(region_code: str, changes: dict):
     """
-    Change fields of an existing region in seDB and return the updated region.
-    Return None if there is no such region or the database is down. Raise
-    ValueError if the changes are not valid.
+    Update fields on an existing region and return the updated region.
     """
     if not is_db_up():
         print("Database is down.")
         return None
+
     unknown = set(changes) - set(UPDATABLE_FIELDS)
     if unknown:
         raise ValueError(f"Cannot update fields: {sorted(unknown)}.")
-    if 'name' in changes:
-        name = changes['name']
-        if not isinstance(name, str) or len(name) == 0:
-            raise ValueError("Region name must be a non-empty string.")
-    if 'population' in changes:
-        population = changes['population']
-        if not isinstance(population, int) or population < 0:
-            raise ValueError("Population must be a non-negative integer.")
+
     if not exists(region_code):
         return None
-    if changes:
-        dbc.update(REGIONS_COLLECTION, {ID: region_code}, changes)
-    updated = dbc.read_one(REGIONS_COLLECTION, {ID: region_code})
-    if updated is not None:
-        updated.pop(dbc.MONGO_ID, None)
-    return updated
 
+    if 'population' in changes:
+        if not isinstance(changes['population'], int) or changes['population'] < 0:
+            raise ValueError("Population must be a non-negative integer.")
+
+    if 'name' in changes and (not isinstance(changes['name'], str) or len(changes['name']) == 0):
+        raise ValueError("Region name must be a non-empty string.")
+
+    dbc.update(REGIONS_COLLECTION, {ID: region_code}, changes)
+    return read_one(region_code)
 
 def delete(region_code: str):
     """
