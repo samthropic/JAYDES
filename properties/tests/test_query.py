@@ -33,7 +33,32 @@ def test_property():
 
 @patch.object(qry, "PROPERTY_TEST_DATA", PROPERTY_TEST_DATA)
 def test_check_valid_property(test_property):
-    assert qry.check_valid_property(**test_property)
+    with patch("properties.query.nqry.exists", return_value=True):
+        assert qry.check_valid_property(**test_property)
+
+
+def test_create_property(test_property):
+    with patch.object(qry, "PROPERTY_TEST_DATA", dict(PROPERTY_TEST_DATA)):
+        with patch("properties.query.nqry.exists", return_value=True):
+            created = qry.create(**test_property)
+
+        expected_stored = {key: value for key, value in test_property.items()
+                           if key != "property_id"}
+        assert (qry.PROPERTY_TEST_DATA[test_property["property_id"]]
+                == expected_stored)
+
+    assert created == {
+        "id": test_property["property_id"],
+        **{key: value for key, value in test_property.items()
+           if key != "property_id"},
+    }
+
+
+def test_create_property_requires_existing_neighborhood(test_property):
+    with patch.object(qry, "PROPERTY_TEST_DATA", dict(PROPERTY_TEST_DATA)):
+        with patch("properties.query.nqry.exists", return_value=False):
+            with pytest.raises(ValueError, match="does not exist"):
+                qry.create(**test_property)
 
 
 @patch.object(qry, "PROPERTY_TEST_DATA", PROPERTY_TEST_DATA)

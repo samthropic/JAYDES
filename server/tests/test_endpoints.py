@@ -16,6 +16,7 @@ import pytest
 
 from server import endpoints as ep
 import states.query as sqry
+import properties.query as pqry
 
 TEST_CLIENT = ep.app.test_client()
 
@@ -172,6 +173,57 @@ def test_get_properties():
         assert 'id' in prop
         assert 'address' in prop
         assert 'neighborhood_id' in prop
+
+
+NEW_PROPERTY = {
+    'id': 'prop-api-test',
+    'address': '1 Test Street, Test City, NY',
+    'neighborhood_id': '73a1b2c3-d4e5-6f7a-8b9c-0123456789ab',
+    'price': 250000,
+    'bedrooms': 3,
+    'bathrooms': 2,
+    'latitude': 40.7128,
+    'longitude': -74.0060,
+}
+
+
+def test_post_property():
+    with patch.dict(pqry.PROPERTY_TEST_DATA):
+        resp = TEST_CLIENT.post(ep.PROPERTIES_EP, json=NEW_PROPERTY)
+
+    assert resp.status_code == CREATED
+    property_record = resp.get_json()[ep.PROPERTY_RESP]
+    assert property_record['id'] == NEW_PROPERTY['id']
+    assert property_record['address'] == NEW_PROPERTY['address']
+    assert property_record['neighborhood_id'] == NEW_PROPERTY['neighborhood_id']
+
+
+def test_post_property_already_exists():
+    resp = TEST_CLIENT.post(ep.PROPERTIES_EP,
+                            json={**NEW_PROPERTY, 'id': 'prop-001'})
+    assert resp.status_code == CONFLICT
+
+
+def test_post_property_unknown_neighborhood():
+    resp = TEST_CLIENT.post(
+        ep.PROPERTIES_EP,
+        json={**NEW_PROPERTY, 'neighborhood_id': 'missing-neighborhood'},
+    )
+    assert resp.status_code == BAD_REQUEST
+
+
+def test_post_property_missing_field():
+    incomplete_property = {
+        key: value for key, value in NEW_PROPERTY.items() if key != 'price'
+    }
+    resp = TEST_CLIENT.post(ep.PROPERTIES_EP, json=incomplete_property)
+    assert resp.status_code == BAD_REQUEST
+
+
+@patch('properties.query.is_db_up', return_value=False, autospec=True)
+def test_post_property_db_unavailable(mock_is_db_up):
+    resp = TEST_CLIENT.post(ep.PROPERTIES_EP, json=NEW_PROPERTY)
+    assert resp.status_code == SERVICE_UNAVAILABLE
 
 
 def test_get_neighborhood_by_id():
