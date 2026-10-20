@@ -7,6 +7,7 @@ from data.db_connect import is_db_up
 REGION_CODE_LEN = 2
 ID = 'id'
 REGIONS_COLLECTION = 'regions'
+UPDATABLE_FIELDS = ('name', 'population', 'description')
 
 TEST_REGION = {
     "region_code": "TR",
@@ -87,18 +88,61 @@ def check_valid_region(region_code: str, name: str, population: int,
 def create(region_code: str, name: str, population: int,
            description: str):
     """
-    Create a new region entry in the test data.
+    Create a new region in seDB.
     """
     check_valid_region(region_code, name, population, description)
     if not is_db_up():
         print("Database is down.")
         return None
-    REGION_TEST_DATA[region_code] = {
+    doc = {
         "name": name,
         "population": population,
         "description": description,
     }
-    return REGION_TEST_DATA[region_code]
+    dbc.create(REGIONS_COLLECTION, {ID: region_code, **doc})
+    return doc
+
+
+def update(region_code: str, changes: dict):
+    """
+    Change fields of an existing region in seDB and return the updated region.
+    Return None if there is no such region or the database is down. Raise
+    ValueError if the changes are not valid.
+    """
+    if not is_db_up():
+        print("Database is down.")
+        return None
+    unknown = set(changes) - set(UPDATABLE_FIELDS)
+    if unknown:
+        raise ValueError(f"Cannot update fields: {sorted(unknown)}.")
+    if 'name' in changes:
+        name = changes['name']
+        if not isinstance(name, str) or len(name) == 0:
+            raise ValueError("Region name must be a non-empty string.")
+    if 'population' in changes:
+        population = changes['population']
+        if not isinstance(population, int) or population < 0:
+            raise ValueError("Population must be a non-negative integer.")
+    if not exists(region_code):
+        return None
+    if changes:
+        dbc.update(REGIONS_COLLECTION, {ID: region_code}, changes)
+    updated = dbc.read_one(REGIONS_COLLECTION, {ID: region_code})
+    if updated is not None:
+        updated.pop(dbc.MONGO_ID, None)
+    return updated
+
+
+def delete(region_code: str):
+    """
+    Delete a region from seDB. Return True if it was deleted, False if there
+    is no such region, and None if the database is down.
+    """
+    if not is_db_up():
+        print("Database is down.")
+        return None
+    _ensure_seeded()
+    return dbc.delete(REGIONS_COLLECTION, {ID: region_code}) > 0
 
 
 def main():

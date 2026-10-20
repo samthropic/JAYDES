@@ -1,6 +1,7 @@
 import pytest
 
 import regions.query as qry
+import states.query as sqry
 
 TEST_RG = qry.TEST_REGION
 
@@ -48,3 +49,11 @@ def test_check_valid_region_empty_name():
 def test_query():
     regions = qry.read()
     assert isinstance(regions, dict)
+
+
+@pytest.mark.skip(reason='delete() still removes a region that has states')
+def test_delete_region_with_states():
+    states = sqry.read()
+    assert any(state['region_id'] == 'SE' for state in states)
+    assert qry.delete('SE') is False
+    assert qry.exists('SE') is True

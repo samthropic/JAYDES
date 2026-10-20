@@ -1,6 +1,6 @@
 # Database schema and local setup
 
-Application data belongs in MongoDB database `seDB`. All MongoDB access goes through `data/db_connect.py`. `states.query.read()` and `regions.query.read()` load the `states` and `regions` collections. `create()` in those modules still writes the in-memory dictionaries.
+Application data belongs in MongoDB database `seDB`. All MongoDB access goes through `data/db_connect.py`. `states.query` and `regions.query` read, create, update, and delete documents in the `states` and `regions` collections. `STATE_TEST_DATA` and `REGION_TEST_DATA` are only the sample rows inserted when a collection is empty.
 
 ## Collections
 
@@ -17,7 +17,7 @@ Stored in the `states` collection. `STATE_TEST_DATA` in `states/query.py` is the
 | `capital` | yes | |
 | `population` | yes | Non-negative integer |
 | `area_sq_miles` | yes | Number |
-| `region_id` | planned | Id of an existing region, such as `NE`. Not stored yet. |
+| `region_id` | no | Id of an existing region, such as `NE`. Sample states store one. A new state may omit it. |
 
 ### `regions`
 
