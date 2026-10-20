@@ -76,6 +76,16 @@ property_model = api.model('Property', {
     'longitude': fields.Float(required=True, description='Longitude'),
 })
 
+property_update_model = api.model('PropertyUpdate', {
+    'address': fields.String(description='Property address'),
+    'neighborhood_id': fields.String(description='Neighborhood id'),
+    'price': fields.Float(description='Price'),
+    'bedrooms': fields.Integer(description='Bedroom count'),
+    'bathrooms': fields.Float(description='Bathroom count'),
+    'latitude': fields.Float(description='Latitude'),
+    'longitude': fields.Float(description='Longitude'),
+})
+
 
 @api.route(HELLO_EP)
 class HelloWorld(Resource):
@@ -304,3 +314,34 @@ class Property(Resource):
         if property_record is None:
             raise wz.NotFound(f'Property {property_id} not found.')
         return property_record
+
+    @api.expect(property_update_model, validate=True)
+    @api.response(HTTPStatus.OK.value, 'Updated', property_model)
+    @api.response(HTTPStatus.BAD_REQUEST.value, 'Invalid property data')
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def patch(self, property_id):
+        """Update one or more fields on a property."""
+        if not pqry.is_db_up():
+            raise wz.ServiceUnavailable('Database may be down.')
+        changes = api.payload or {}
+        if not changes:
+            raise wz.BadRequest('At least one property field is required.')
+        try:
+            property_record = pqry.update(property_id, changes)
+        except ValueError as err:
+            raise wz.BadRequest(str(err))
+        if property_record is None:
+            raise wz.NotFound(f'Property {property_id} not found.')
+        return {PROPERTY_RESP: property_record}
+
+    @api.response(HTTPStatus.NO_CONTENT.value, 'Deleted')
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def delete(self, property_id):
+        """Delete one property by id."""
+        if not pqry.is_db_up():
+            raise wz.ServiceUnavailable('Database may be down.')
+        if not pqry.delete(property_id):
+            raise wz.NotFound(f'Property {property_id} not found.')
+        return '', HTTPStatus.NO_CONTENT

@@ -61,6 +61,67 @@ def test_create_property_requires_existing_neighborhood(test_property):
                 qry.create(**test_property)
 
 
+def test_update_property(test_property):
+    test_data = {"prop-test": {
+        key: value for key, value in test_property.items()
+        if key != "property_id"
+    }}
+    with patch.object(qry, "PROPERTY_TEST_DATA", test_data):
+        with patch("properties.query.nqry.exists", return_value=True):
+            updated = qry.update("prop-test", {"price": 300000})
+
+    assert updated["id"] == "prop-test"
+    assert updated["price"] == 300000
+    assert updated["address"] == test_property["address"]
+
+
+@pytest.mark.parametrize(
+    ("changes", "message"),
+    [
+        ({"price": -1}, "Price"),
+        ({"neighborhood_id": "missing-neighborhood"}, "does not exist"),
+        ({"id": "changed-id"}, "Cannot update fields"),
+    ],
+)
+def test_update_property_rejects_invalid_changes(test_property, changes,
+                                                  message):
+    test_data = {"prop-test": {
+        key: value for key, value in test_property.items()
+        if key != "property_id"
+    }}
+    with patch.object(qry, "PROPERTY_TEST_DATA", test_data):
+        neighborhood_exists = (
+            changes.get("neighborhood_id", test_property["neighborhood_id"])
+            == test_property["neighborhood_id"]
+        )
+        with patch("properties.query.nqry.exists",
+                   return_value=neighborhood_exists):
+            with pytest.raises(ValueError, match=message):
+                qry.update("prop-test", changes)
+
+
+def test_update_missing_property_returns_none():
+    with patch.object(qry, "PROPERTY_TEST_DATA", {}):
+        assert qry.update("missing-property", {"price": 100}) is None
+
+
+def test_delete_property():
+    with patch.object(qry, "PROPERTY_TEST_DATA", dict(PROPERTY_TEST_DATA)):
+        assert qry.delete("prop-001") is True
+        assert qry.delete("prop-001") is False
+
+
+@patch("properties.query.is_db_up", return_value=False)
+def test_update_and_delete_database_unavailable(mock_is_db_up, test_property):
+    test_data = {"prop-test": {
+        key: value for key, value in test_property.items()
+        if key != "property_id"
+    }}
+    with patch.object(qry, "PROPERTY_TEST_DATA", test_data):
+        assert qry.update("prop-test", {"price": 100}) is None
+        assert qry.delete("prop-test") is None
+
+
 @patch.object(qry, "PROPERTY_TEST_DATA", PROPERTY_TEST_DATA)
 def test_each_property_has_required_fields():
     required_fields = {

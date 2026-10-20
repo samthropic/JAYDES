@@ -6,6 +6,10 @@ from data.db_connect import is_db_up
 import neighborhoods.query as nqry
 
 ID = "id"
+UPDATABLE_FIELDS = (
+    "address", "neighborhood_id", "price", "bedrooms", "bathrooms",
+    "latitude", "longitude",
+)
 
 PROPERTY_TEST_DATA = {
     "prop-001": {
@@ -103,6 +107,12 @@ def _is_number(value):
             and (not isinstance(value, float) or math.isfinite(value)))
 
 
+def _check_neighborhood_exists(neighborhood_id: str):
+    if not nqry.exists(neighborhood_id):
+        raise ValueError(f"Neighborhood id {neighborhood_id} does not exist.")
+    return True
+
+
 def check_valid_property(property_id: str, address: str,
                          neighborhood_id: str, price: float,
                          bedrooms: int, bathrooms: float,
@@ -111,12 +121,21 @@ def check_valid_property(property_id: str, address: str,
         raise ValueError("Property id must be a non-empty string.")
     if exists(property_id):
         raise ValueError(f"Property id {property_id} already exists.")
+    _check_property_fields(
+        address, neighborhood_id, price, bedrooms, bathrooms, latitude,
+        longitude,
+    )
+    _check_neighborhood_exists(neighborhood_id)
+    return True
+
+
+def _check_property_fields(address: str, neighborhood_id: str, price: float,
+                           bedrooms: int, bathrooms: float, latitude: float,
+                           longitude: float):
     if not _is_non_empty_string(address):
         raise ValueError("Property address must be a non-empty string.")
     if not _is_non_empty_string(neighborhood_id):
         raise ValueError("Neighborhood id must be a non-empty string.")
-    if not nqry.exists(neighborhood_id):
-        raise ValueError(f"Neighborhood id {neighborhood_id} does not exist.")
     if not _is_number(price) or price < 0:
         raise ValueError("Price must be a non-negative number.")
     if (not isinstance(bedrooms, int) or isinstance(bedrooms, bool)
@@ -153,3 +172,36 @@ def create(property_id: str, address: str, neighborhood_id: str,
         "longitude": longitude,
     }
     return {ID: property_id, **PROPERTY_TEST_DATA[property_id]}
+
+
+def update(property_id: str, changes: dict):
+    """Update a property and return it, or None if it does not exist."""
+    if not is_db_up():
+        print("Database is down.")
+        return None
+    unknown = set(changes) - set(UPDATABLE_FIELDS)
+    if unknown:
+        raise ValueError(f"Cannot update fields: {sorted(unknown)}.")
+    if property_id not in PROPERTY_TEST_DATA:
+        return None
+
+    updated = {**PROPERTY_TEST_DATA[property_id], **changes}
+    _check_property_fields(
+        updated["address"], updated["neighborhood_id"], updated["price"],
+        updated["bedrooms"], updated["bathrooms"], updated["latitude"],
+        updated["longitude"],
+    )
+    if "neighborhood_id" in changes:
+        _check_neighborhood_exists(updated["neighborhood_id"])
+    PROPERTY_TEST_DATA[property_id] = updated
+    return {ID: property_id, **updated}
+
+
+def delete(property_id: str):
+    """Delete a property; return False if missing and None if the database
+    is down.
+    """
+    if not is_db_up():
+        print("Database is down.")
+        return None
+    return PROPERTY_TEST_DATA.pop(property_id, None) is not None

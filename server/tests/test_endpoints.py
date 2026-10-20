@@ -256,6 +256,72 @@ def test_get_missing_property_by_id():
     assert resp.status_code == NOT_FOUND
 
 
+def test_patch_property():
+    with patch.dict(pqry.PROPERTY_TEST_DATA):
+        resp = TEST_CLIENT.patch(
+            f"{ep.PROPERTIES_EP}/prop-001", json={"price": 1900000}
+        )
+
+    assert resp.status_code == OK
+    property_record = resp.get_json()[ep.PROPERTY_RESP]
+    assert property_record['id'] == 'prop-001'
+    assert property_record['price'] == 1900000
+    assert property_record['address'] == '125 Perry Street, New York, NY'
+
+
+def test_patch_property_invalid_data():
+    resp = TEST_CLIENT.patch(
+        f"{ep.PROPERTIES_EP}/prop-001", json={"price": -1}
+    )
+    assert resp.status_code == BAD_REQUEST
+
+
+def test_patch_property_unknown_neighborhood():
+    resp = TEST_CLIENT.patch(
+        f"{ep.PROPERTIES_EP}/prop-001",
+        json={"neighborhood_id": "missing-neighborhood"},
+    )
+    assert resp.status_code == BAD_REQUEST
+
+
+def test_patch_property_empty_changes():
+    resp = TEST_CLIENT.patch(f"{ep.PROPERTIES_EP}/prop-001", json={})
+    assert resp.status_code == BAD_REQUEST
+
+
+def test_patch_missing_property():
+    resp = TEST_CLIENT.patch(
+        f"{ep.PROPERTIES_EP}/missing-property", json={"price": 100}
+    )
+    assert resp.status_code == NOT_FOUND
+
+
+@patch('properties.query.is_db_up', return_value=False, autospec=True)
+def test_patch_property_db_unavailable(mock_is_db_up):
+    resp = TEST_CLIENT.patch(
+        f"{ep.PROPERTIES_EP}/prop-001", json={"price": 100}
+    )
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+def test_delete_property():
+    with patch.dict(pqry.PROPERTY_TEST_DATA):
+        resp = TEST_CLIENT.delete(f"{ep.PROPERTIES_EP}/prop-001")
+
+    assert resp.status_code == NO_CONTENT
+
+
+def test_delete_missing_property():
+    resp = TEST_CLIENT.delete(f"{ep.PROPERTIES_EP}/missing-property")
+    assert resp.status_code == NOT_FOUND
+
+
+@patch('properties.query.is_db_up', return_value=False, autospec=True)
+def test_delete_property_db_unavailable(mock_is_db_up):
+    resp = TEST_CLIENT.delete(f"{ep.PROPERTIES_EP}/prop-001")
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
 @patch('regions.query.is_db_up', return_value=False, autospec=True)
 def test_get_regions_db_unavailable(mock_is_db_up):
     resp = TEST_CLIENT.get(ep.REGIONS_EP)
