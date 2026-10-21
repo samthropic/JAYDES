@@ -518,3 +518,34 @@ def test_get_state_neighborhoods(mock_neighborhood_db):
 def test_get_state_neighborhoods_missing_state(mock_neighborhood_db):
     resp = TEST_CLIENT.get(f'{ep.STATES_EP}/ZZ/neighborhoods')
     assert resp.status_code == NOT_FOUND
+
+
+def test_get_state_neighborhoods_empty(mock_neighborhood_db):
+    resp = TEST_CLIENT.get(f'{ep.STATES_EP}/AK/neighborhoods')
+    assert resp.status_code == OK
+    assert resp.get_json()[ep.NEIGHBORHOODS_RESP] == []
+
+
+def test_get_state_neighborhoods_only_that_state(mock_neighborhood_db):
+    mock_neighborhood_db['99999999-aaaa-bbbb-cccc-dddddddddddd'] = {
+        'name': 'Other State Neighborhood',
+        'state_id': 'AK',
+    }
+    resp = TEST_CLIENT.get(f'{ep.STATES_EP}/AL/neighborhoods')
+    names = [n['name'] for n in resp.get_json()[ep.NEIGHBORHOODS_RESP]]
+    assert sorted(names) == ['Greenwich Village', 'Test Neighborhood']
+
+
+def test_get_state_neighborhoods_includes_new_neighborhood(
+        new_neighborhood, mock_neighborhood_db, mock_states_db):
+    resp = TEST_CLIENT.post(ep.NEIGHBORHOODS_EP, json=new_neighborhood)
+    assert resp.status_code == CREATED
+    resp = TEST_CLIENT.get(f'{ep.STATES_EP}/AL/neighborhoods')
+    ids = [n['id'] for n in resp.get_json()[ep.NEIGHBORHOODS_RESP]]
+    assert new_neighborhood['id'] in ids
+
+
+@patch('states.query.is_db_up', return_value=False, autospec=True)
+def test_get_state_neighborhoods_db_unavailable(mock_is_db_up):
+    resp = TEST_CLIENT.get(f'{ep.STATES_EP}/AL/neighborhoods')
+    assert resp.status_code == SERVICE_UNAVAILABLE
