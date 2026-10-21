@@ -108,6 +108,44 @@ def create(neighborhood_id: str, name: str, state_id: str):
     return {ID: neighborhood_id, **NEIGHBORHOOD_TEST_DATA[neighborhood_id]}
 
 
+def update(neighborhood_id: str, changes: dict):
+    """
+    Update an existing neighborhood entry with partial changes.
+    """
+    if not is_db_up():
+        print("Database is down.")
+        return None
+
+    if neighborhood_id not in NEIGHBORHOOD_TEST_DATA:
+        return None
+
+    if 'name' in changes:
+        name = changes['name']
+        if not isinstance(name, str) or len(name.strip()) == 0:
+            raise ValueError("Neighborhood name must be a non-empty string.")
+
+    if 'state_id' in changes:
+        state_id = changes['state_id']
+        if (not isinstance(state_id, str) or
+                len(state_id) != state_qry.STATE_CODE_LEN):
+            raise ValueError(
+                f"State ID must be a {state_qry.STATE_CODE_LEN}-letter string."
+            )
+        if not state_qry.exists(state_id):
+            raise ValueError(
+                f"State ID '{state_id}' does not exist in the database."
+            )
+
+    record = NEIGHBORHOOD_TEST_DATA[neighborhood_id]
+
+    if 'name' in changes:
+        record['name'] = changes['name']
+    if 'state_id' in changes:
+        record['state_id'] = changes['state_id']
+
+    return {ID: neighborhood_id, **record}
+
+
 def main():
     neighborhoods = read()
     if neighborhoods:
