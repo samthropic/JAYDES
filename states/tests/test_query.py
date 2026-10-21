@@ -124,8 +124,6 @@ def test_query():
         assert isinstance(state['region_id'], str)
         assert len(state['region_id']) == qry.STATE_CODE_LEN
 
-        
-@pytest.mark.skip(reason='create() writes the in-memory dictionary, not seDB')
 def test_create_is_readable_from_db():
     qry.create(TEST_ST['state_code'],
                TEST_ST['population'],

@@ -133,7 +133,7 @@ def create(
     region_id: str = None,
 ):
     """
-    Create a new state entry in the test data.
+    Create a new state in seDB.
     """
     # check_valid_state raises ValueError if the state is invalid, so we don't
     # need to check the return value.
@@ -148,14 +148,15 @@ def create(
     if not is_db_up():
         print("Database is down.")
         return None
-    STATE_TEST_DATA[state_code] = {
+    doc = {
         "population": population,
         "capital": capital,
         "area_sq_miles": area_sq_miles,
         "name": name,
         "region_id": region_id,
     }
-    return STATE_TEST_DATA[state_code]
+    dbc.create(STATES_COLLECTION, {ID: state_code, **doc})
+    return doc
 
 
 def update(state_code: str, changes: dict):
