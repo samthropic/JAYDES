@@ -59,7 +59,6 @@ def read():
     return regions
 
 
-
 def read_one(region_code: str):
     """
     Return a single region by code, or None if absent or DB is down.
@@ -146,7 +145,6 @@ def update(region_code: str, changes: dict):
 
     dbc.update(REGIONS_COLLECTION, {ID: region_code}, changes)
     return read_one(region_code)
-
 
 
 def delete(region_code: str):
