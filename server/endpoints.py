@@ -212,6 +212,31 @@ class State(Resource):
         return '', HTTPStatus.NO_CONTENT
 
 
+@api.route(f'{STATES_EP}/<state_id>/neighborhoods')
+class StateNeighborhoods(Resource):
+    """
+    The get method will return all neighborhoods in a state.
+    """
+    @api.response(HTTPStatus.OK.value, 'Success', [neighborhood_model])
+    @api.response(HTTPStatus.NOT_FOUND.value, 'State Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def get(self, state_id):
+        """
+        The get method will return all neighborhoods in a state.
+        """
+        if not sqry.is_db_up():
+            raise wz.ServiceUnavailable('Database may be down.')
+
+        if not sqry.exists(state_id):
+            raise wz.NotFound(f'State {state_id} not found.')
+
+        neighborhoods = nqry.read()
+        if neighborhoods is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        in_state = [n for n in neighborhoods if n['state_id'] == state_id]
+        return {NEIGHBORHOODS_RESP: in_state}
+
+
 @api.route(REGIONS_EP)
 class Regions(Resource):
     """

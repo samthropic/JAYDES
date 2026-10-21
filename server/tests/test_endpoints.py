@@ -504,3 +504,17 @@ def test_patch_neighborhood_db_unavailable(mock_is_db_up, existing_neighborhood_
     changes = {"name": "Doesn't Matter"}
     resp = TEST_CLIENT.patch(f"{ep.NEIGHBORHOODS_EP}/{existing_neighborhood_id}", json=changes)
     assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+def test_get_state_neighborhoods(mock_neighborhood_db):
+    resp = TEST_CLIENT.get(f'{ep.STATES_EP}/AL/neighborhoods')
+    assert resp.status_code == OK
+    neighborhoods = resp.get_json()[ep.NEIGHBORHOODS_RESP]
+    assert len(neighborhoods) == 2
+    for neighborhood in neighborhoods:
+        assert neighborhood['state_id'] == 'AL'
+
+
+def test_get_state_neighborhoods_missing_state(mock_neighborhood_db):
+    resp = TEST_CLIENT.get(f'{ep.STATES_EP}/ZZ/neighborhoods')
+    assert resp.status_code == NOT_FOUND
