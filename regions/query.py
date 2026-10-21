@@ -59,6 +59,7 @@ def read():
     return regions
 
 
+
 def read_one(region_code: str):
     """
     Return a single region by code, or None if absent or DB is down.
@@ -137,13 +138,15 @@ def update(region_code: str, changes: dict):
         if not isinstance(pop, int) or pop < 0:
             raise ValueError("Population must be a non-negative integer.")
 
-    if 'name' in changes:
-        name = changes['name']
-        if not isinstance(name, str) or len(name) == 0:
-            raise ValueError("Region name must be a non-empty string.")
+    if 'name' in changes and (
+        not isinstance(changes['name'], str)
+        or len(changes['name']) == 0
+    ):
+        raise ValueError("Region name must be a non-empty string.")
 
     dbc.update(REGIONS_COLLECTION, {ID: region_code}, changes)
     return read_one(region_code)
+
 
 
 def delete(region_code: str):
