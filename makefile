@@ -5,6 +5,7 @@ API_DIR = server
 DB_DIR = data
 STATES_DIR = states
 NEIGHBORHOODS_DIR = neighborhoods
+REGIONS_DIR = regions
 PROPERTIES_DIR = properties
 SEC_DIR = security
 REQ_DIR = .
@@ -15,13 +16,13 @@ prod: all_tests github
 
 github: FORCE
 	- git commit -a
-	git push origin master
+	git push origin main
 
 all_tests: FORCE
 	cd $(API_DIR); make tests
 	cd $(STATES_DIR); make tests
 	cd $(NEIGHBORHOODS_DIR); make tests
-	cd regions; make tests
+	cd $(REGIONS_DIR); make tests
 	# cd $(DB_DIR); make tests
 	cd $(PROPERTIES_DIR); make tests
 
