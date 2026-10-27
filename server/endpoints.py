@@ -349,6 +349,25 @@ class Neighborhood(Resource):
 
         return {'Neighborhood': neighborhood}
 
+    @api.response(HTTPStatus.NO_CONTENT.value, 'Deleted')
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def delete(self, neighborhood_id):
+        """Delete one neighborhood by id."""
+        if not nqry.is_db_up():
+            return (
+                {"message": "Database is down."},
+                HTTPStatus.SERVICE_UNAVAILABLE,
+            )
+
+        if not nqry.delete(neighborhood_id):
+            return (
+                {"message": f"Neighborhood {neighborhood_id} not found."},
+                HTTPStatus.NOT_FOUND,
+            )
+
+        return '', HTTPStatus.NO_CONTENT
+
 
 @api.route(PROPERTIES_EP)
 class Properties(Resource):

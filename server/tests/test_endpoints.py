@@ -320,6 +320,22 @@ def test_patch_neighborhood_not_found(mock_neighborhood_db):
     assert len(mock_neighborhood_db) == db_length_before
 
 
+def test_delete_neighborhood_success(existing_neighborhood_id, mock_neighborhood_db):
+    resp = TEST_CLIENT.delete(f"{ep.NEIGHBORHOODS_EP}/{existing_neighborhood_id}")
+    
+    assert resp.status_code == NO_CONTENT
+    assert existing_neighborhood_id not in mock_neighborhood_db
+
+
+def test_delete_neighborhood_not_found(mock_neighborhood_db):
+    missing_id = "missing-neighborhood-id-1234"
+    db_length_before = len(mock_neighborhood_db)
+    
+    resp = TEST_CLIENT.delete(f"{ep.NEIGHBORHOODS_EP}/{missing_id}")
+    
+    assert resp.status_code == NOT_FOUND
+    assert len(mock_neighborhood_db) == db_length_before
+
 def test_get_properties():
     resp = TEST_CLIENT.get(ep.PROPERTIES_EP)
     assert resp.status_code == OK
@@ -494,15 +510,23 @@ def test_get_neighborhood_by_id_db_unavailable(mock_is_db_up):
     resp = TEST_CLIENT.get(f"{ep.NEIGHBORHOODS_EP}/{dummy_id}")
     assert resp.status_code == SERVICE_UNAVAILABLE
 
+
 @patch('neighborhoods.query.is_db_up', return_value=False, autospec=True)
 def test_post_neighborhood_db_unavailable(mock_is_db_up, new_neighborhood):
     resp = TEST_CLIENT.post(ep.NEIGHBORHOODS_EP, json=new_neighborhood)
     assert resp.status_code == SERVICE_UNAVAILABLE
 
+
 @patch('neighborhoods.query.is_db_up', return_value=False, autospec=True)
 def test_patch_neighborhood_db_unavailable(mock_is_db_up, existing_neighborhood_id):
     changes = {"name": "Doesn't Matter"}
     resp = TEST_CLIENT.patch(f"{ep.NEIGHBORHOODS_EP}/{existing_neighborhood_id}", json=changes)
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+@patch('neighborhoods.query.is_db_up', return_value=False, autospec=True)
+def test_delete_neighborhood_db_unavailable(mock_is_db_up, existing_neighborhood_id):
+    resp = TEST_CLIENT.delete(f"{ep.NEIGHBORHOODS_EP}/{existing_neighborhood_id}")
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
