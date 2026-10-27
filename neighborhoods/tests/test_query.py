@@ -118,6 +118,31 @@ def test_update_state_not_found(mock_state_exists, mock_update_db):
             qry.update(EXISTING_ID, {"state_id": "ZZ"})
 
 
+def test_delete_success(mock_update_db):
+    with patch.object(qry, "NEIGHBORHOOD_TEST_DATA", mock_update_db):
+        result = qry.delete(EXISTING_ID)
+        
+        assert result is True
+        assert EXISTING_ID not in mock_update_db
+
+
+def test_delete_not_found(mock_update_db):
+    with patch.object(qry, "NEIGHBORHOOD_TEST_DATA", mock_update_db):
+        db_length_before = len(mock_update_db)
+        result = qry.delete("missing-id-123")
+        
+        assert result is False
+        assert len(mock_update_db) == db_length_before
+
+
+@patch('neighborhoods.query.is_db_up', return_value=False, autospec=True)
+def test_delete_db_unavailable(mock_is_db_up, mock_update_db):
+    with patch.object(qry, "NEIGHBORHOOD_TEST_DATA", mock_update_db):
+        result = qry.delete(EXISTING_ID)
+        
+        assert result is None
+
+
 @patch.object(qry, "NEIGHBORHOOD_TEST_DATA", MOCK_NEIGHBORHOOD_DATA)
 def test_query():
     neighborhoods = qry.read()

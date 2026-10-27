@@ -146,6 +146,21 @@ def update(neighborhood_id: str, changes: dict):
     return {ID: neighborhood_id, **record}
 
 
+def delete(neighborhood_id: str):
+    """
+    Delete a neighborhood entry.
+    """
+    if not is_db_up():
+        print("Database is down.")
+        return None
+
+    if neighborhood_id not in NEIGHBORHOOD_TEST_DATA:
+        return False
+
+    del NEIGHBORHOOD_TEST_DATA[neighborhood_id]
+    return True
+
+
 def main():
     neighborhoods = read()
     if neighborhoods:
