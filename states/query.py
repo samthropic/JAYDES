@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import data.cache as cache
 import data.db_connect as dbc
 from data.db_connect import is_db_up
 import regions.query as rqry
@@ -8,6 +9,7 @@ import regions.query as rqry
 STATE_CODE_LEN = 2
 ID = 'id'
 STATES_COLLECTION = 'states'
+STATES_CACHE = 'states'
 UPDATABLE_FIELDS = ('name', 'capital', 'population', 'area_sq_miles',
                     'region_id')
 
@@ -63,38 +65,41 @@ def _ensure_seeded():
 def read():
     """
     Return a list of states from seDB. The state code is each state's id.
+    A repeated call returns the in-memory copy until a write clears it.
     """
     if not is_db_up():
         print("Database is down.")
         return None
+    cached = cache.get(STATES_CACHE)
+    if cached is not None:
+        return cached
     _ensure_seeded()
-    return dbc.read(STATES_COLLECTION)
+    cache.put(STATES_CACHE, dbc.read(STATES_COLLECTION))
+    return cache.get(STATES_CACHE)
 
 
 def read_one(state_code: str):
     """
-    Return the state with this code from seDB, or None if there is no such
-    state or the database is down.
+    Return the state with this code, or None if there is no such state or
+    the database is down.
     """
-    if not is_db_up():
-        print("Database is down.")
+    states = read()
+    if states is None:
         return None
-    _ensure_seeded()
-    state = dbc.read_one(STATES_COLLECTION, {ID: state_code})
-    if state is not None:
-        state.pop(dbc.MONGO_ID, None)
-    return state
+    for state in states:
+        if state[ID] == state_code:
+            return state
+    return None
 
 
 def exists(state_code: str):
     """
     Check if a state exists in seDB.
     """
-    if not is_db_up():
-        print("Database is down.")
+    states = read()
+    if states is None:
         return None
-    _ensure_seeded()
-    return dbc.read_one(STATES_COLLECTION, {ID: state_code}) is not None
+    return any(state[ID] == state_code for state in states)
 
 
 def check_valid_state(
@@ -156,6 +161,7 @@ def create(
         "region_id": region_id,
     }
     dbc.create(STATES_COLLECTION, {ID: state_code, **doc})
+    cache.invalidate(STATES_CACHE)
     return doc
 
 
@@ -181,6 +187,7 @@ def update(state_code: str, changes: dict):
         return None
     if changes:
         dbc.update(STATES_COLLECTION, {ID: state_code}, changes)
+        cache.invalidate(STATES_CACHE)
     return read_one(state_code)
 
 
@@ -193,7 +200,10 @@ def delete(state_code: str):
         print("Database is down.")
         return None
     _ensure_seeded()
-    return dbc.delete(STATES_COLLECTION, {ID: state_code}) > 0
+    deleted = dbc.delete(STATES_COLLECTION, {ID: state_code}) > 0
+    if deleted:
+        cache.invalidate(STATES_CACHE)
+    return deleted
 
 
 def main():

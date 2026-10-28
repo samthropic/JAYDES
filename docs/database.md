@@ -84,6 +84,8 @@ MongoDB listens on `localhost:27017`. Leave `CLOUD_MONGO` unset, or set it to `0
 
 `is_db_up()` calls `connect_db()` and pings the server. A failed ping makes `states.query.read()` and `regions.query.read()` return `None`, and `GET /states` and `GET /regions` respond with HTTP 503.
 
+`data/cache.py` keeps the latest state and region lists in memory. `read()` uses that copy until `create()`, `update()`, or `delete()` clears it. The test fixture clears the cache when it resets the collections.
+
 ## Running tests
 
 From the repository root, after the local setup above:
@@ -94,7 +96,7 @@ export PYTHONPATH="$(pwd)"
 make all_tests
 ```
 
-`make all_tests` lints and runs pytest for `server`, `states`, `neighborhoods`, `regions`, `data`, and `properties`. The `data` tests check that state and region create, update, and delete are stored in `seDB`. `common.mk` sets `CLOUD_MONGO=0` for those runs. GitHub Actions runs the same `make all_tests` target on push and pull request to `main` (`.github/workflows/main.yml`). The PythonAnywhere deploy step in that workflow stays commented out.
+`make all_tests` lints and runs pytest for `server`, `states`, `neighborhoods`, `regions`, `data`, and `properties`. The `data` tests check that state and region create, update, and delete are stored in `seDB`, and that those writes clear the in-memory cache. `common.mk` sets `CLOUD_MONGO=0` for those runs. GitHub Actions runs the same `make all_tests` target on push and pull request to `main` (`.github/workflows/main.yml`). The PythonAnywhere deploy step in that workflow stays commented out.
 
 Each of those test runs uses `data/db_fixture.py`. Before a test, it clears the `states` and `regions` collections and inserts the sample rows. After the test, it clears those collections again. Local MongoDB must be running.
 

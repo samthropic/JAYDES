@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import data.cache as cache
 import data.db_connect as dbc
 from data.db_connect import is_db_up
 
@@ -7,11 +8,13 @@ from data.db_connect import is_db_up
 REGION_CODE_LEN = 2
 ID = 'id'
 REGIONS_COLLECTION = 'regions'
+REGIONS_CACHE = 'regions'
 UPDATABLE_FIELDS = ('name', 'population', 'description')
 
 
 class RegionHasStatesError(ValueError):
     """A region cannot be deleted while states reference it."""
+
 
 TEST_REGION = {
     "region_code": "TR",
@@ -49,35 +52,40 @@ def _ensure_seeded():
 
 
 def read():
-    """Return all regions as list records including the region code in `id`."""
+    """
+    Return all regions as list records including the region code in `id`.
+    A repeated call returns the in-memory copy until a write clears it.
+    """
     if not is_db_up():
         print("Database is down.")
         return None
+    cached = cache.get(REGIONS_CACHE)
+    if cached is not None:
+        return cached
     _ensure_seeded()
-    return dbc.read(REGIONS_COLLECTION)
+    cache.put(REGIONS_CACHE, dbc.read(REGIONS_COLLECTION))
+    return cache.get(REGIONS_CACHE)
 
 
 def read_one(region_code: str):
     """
     Return a single region by code, or None if absent or DB is down.
     """
-    if not is_db_up():
-        print("Database is down.")
+    regions = read()
+    if regions is None:
         return None
-    _ensure_seeded()
-    region = dbc.read_one(REGIONS_COLLECTION, {ID: region_code})
-    if region is not None:
-        region.pop(dbc.MONGO_ID, None)
-    return region
+    for region in regions:
+        if region[ID] == region_code:
+            return region
+    return None
 
 
 def exists(region_code: str):
     """Check if a region exists in seDB."""
-    if not is_db_up():
-        print("Database is down.")
+    regions = read()
+    if regions is None:
         return None
-    _ensure_seeded()
-    return dbc.read_one(REGIONS_COLLECTION, {ID: region_code}) is not None
+    return any(region[ID] == region_code for region in regions)
 
 
 def check_valid_region(region_code: str, name: str, population: int,
@@ -111,6 +119,7 @@ def create(region_code: str, name: str, population: int,
         "description": description,
     }
     dbc.create(REGIONS_COLLECTION, doc)
+    cache.invalidate(REGIONS_CACHE)
     return {
         ID: region_code,
         "name": name,
@@ -148,6 +157,7 @@ def update(region_code: str, changes: dict):
             raise ValueError("Region description must be a string.")
 
     dbc.update(REGIONS_COLLECTION, {ID: region_code}, changes)
+    cache.invalidate(REGIONS_CACHE)
     return read_one(region_code)
 
 
@@ -166,7 +176,10 @@ def delete(region_code: str):
             f'Region {region_code} still has states. '
             'Reassign or delete those states before deleting the region.'
         )
-    return dbc.delete(REGIONS_COLLECTION, {ID: region_code}) > 0
+    deleted = dbc.delete(REGIONS_COLLECTION, {ID: region_code}) > 0
+    if deleted:
+        cache.invalidate(REGIONS_CACHE)
+    return deleted
 
 
 def main():
