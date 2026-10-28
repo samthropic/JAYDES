@@ -54,3 +54,10 @@ def test_region_update_is_stored():
 def test_region_delete_removes_document():
     assert rqry.delete('NE') is True
     assert _stored(rqry.REGIONS_COLLECTION, 'NE') is None
+
+
+def test_region_with_states_is_not_deleted():
+    with pytest.raises(rqry.RegionHasStatesError):
+        rqry.delete('SE')
+    assert _stored(rqry.REGIONS_COLLECTION, 'SE') is not None
+    assert _stored(sqry.STATES_COLLECTION, 'AL')['region_id'] == 'SE'

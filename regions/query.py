@@ -9,6 +9,10 @@ ID = 'id'
 REGIONS_COLLECTION = 'regions'
 UPDATABLE_FIELDS = ('name', 'population', 'description')
 
+
+class RegionHasStatesError(ValueError):
+    """A region cannot be deleted while states reference it."""
+
 TEST_REGION = {
     "region_code": "TR",
     "name": "Test Region",
@@ -151,11 +155,17 @@ def delete(region_code: str):
     """
     Delete a region from seDB. Return True if it was deleted, False if there
     is no such region, and None if the database is down.
+    Raise RegionHasStatesError if any state references the region.
     """
     if not is_db_up():
         print("Database is down.")
         return None
     _ensure_seeded()
+    if dbc.read_one('states', {'region_id': region_code}) is not None:
+        raise RegionHasStatesError(
+            f'Region {region_code} still has states. '
+            'Reassign or delete those states before deleting the region.'
+        )
     return dbc.delete(REGIONS_COLLECTION, {ID: region_code}) > 0
 
 

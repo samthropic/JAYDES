@@ -51,9 +51,19 @@ def test_query():
     assert isinstance(regions, list)
 
 
-@pytest.mark.skip(reason='delete() still removes a region that has states')
 def test_delete_region_with_states():
     states = sqry.read()
     assert any(state['region_id'] == 'SE' for state in states)
-    assert qry.delete('SE') is False
+    with pytest.raises(qry.RegionHasStatesError, match='still has states'):
+        qry.delete('SE')
     assert qry.exists('SE') is True
+    assert sqry.read_one('AL')['region_id'] == 'SE'
+
+
+def test_delete_region_without_states():
+    assert qry.delete('NE') is True
+    assert qry.exists('NE') is False
+
+
+def test_delete_missing_region():
+    assert qry.delete('ZZ') is False
