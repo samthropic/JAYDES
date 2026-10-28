@@ -412,7 +412,7 @@ class Neighborhoods(Resource):
         The post method will create a new neighborhood.
         """
         data = api.payload
-        if not nqry.is_db_up():
+        if not nqry.dbc.is_db_up():
             raise wz.ServiceUnavailable('Database may be down.')
 
         neighborhood_id = data[nqry.ID]
@@ -449,7 +449,7 @@ class Neighborhood(Resource):
         """
         The get method will return a single neighborhood by id.
         """
-        if not nqry.is_db_up():
+        if not nqry.dbc.is_db_up():
             raise wz.ServiceUnavailable('Database may be down.')
 
         neighborhood = nqry.read(neighborhood_id)
@@ -464,7 +464,7 @@ class Neighborhood(Resource):
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def patch(self, neighborhood_id):
         """Update one or more fields on a neighborhood."""
-        if not nqry.is_db_up():
+        if not nqry.dbc.is_db_up():
             raise wz.ServiceUnavailable('Database may be down.')
 
         changes = api.payload or {}
@@ -486,7 +486,7 @@ class Neighborhood(Resource):
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def delete(self, neighborhood_id):
         """Delete one neighborhood by id."""
-        if not nqry.is_db_up():
+        if not nqry.dbc.is_db_up():
             return (
                 {"message": "Database is down."},
                 HTTPStatus.SERVICE_UNAVAILABLE,

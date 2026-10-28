@@ -209,8 +209,8 @@ def existing_neighborhood_id():
 
 @pytest.fixture
 def mock_neighborhood_db():
-    """Provides a fresh, isolated neighborhood database for each test."""
-    fresh_test_data = {
+    """Simulates the MongoDB database using an in-memory dictionary."""
+    mock_db = {
         "73a1b2c3-d4e5-6f7a-8b9c-0123456789ab": {
             "name": "Greenwich Village",
             "state_id": "AL"
@@ -220,16 +220,49 @@ def mock_neighborhood_db():
             "state_id": "AL"
         }
     }
-    with patch.dict(nqry.NEIGHBORHOOD_TEST_DATA, fresh_test_data, clear=True) as patched_dict:
-        yield patched_dict
+
+    def mock_read(collection):
+        return [{"id": k, **v} for k, v in mock_db.items()]
+        
+    def mock_read_one(collection, filt):
+        n_id = filt.get('id')
+        if n_id in mock_db:
+            return {"id": n_id, **mock_db[n_id]}
+        return None
+        
+    def mock_create(collection, doc):
+        n_id = doc.get('id')
+        mock_db[n_id] = {k: v for k, v in doc.items() if k != 'id'}
+        return doc
+        
+    def mock_update(collection, filters, update_dict):
+        n_id = filters.get('id')
+        if n_id in mock_db:
+            mock_db[n_id].update(update_dict)
+            
+    def mock_delete(collection, filt):
+        n_id = filt.get('id')
+        if n_id in mock_db:
+            del mock_db[n_id]
+            return 1
+        return 0
+
+    with patch('neighborhoods.query.dbc.read', side_effect=mock_read), \
+         patch('neighborhoods.query.dbc.read_one', side_effect=mock_read_one), \
+         patch('neighborhoods.query.dbc.create', side_effect=mock_create), \
+         patch('neighborhoods.query.dbc.update', side_effect=mock_update), \
+         patch('neighborhoods.query.dbc.delete', side_effect=mock_delete), \
+         patch('neighborhoods.query.dbc.is_db_up', return_value=True):
+         yield mock_db
 
 
 @pytest.fixture
 def mock_states_db():
     """Mocks state_qry.exists to simulate database validation for specific states."""
-    valid_states = {"AL", "CA", "AZ"}
+    valid_states = {"AL", "CA", "AZ", "AK"}
     
-    with patch('neighborhoods.query.state_qry.exists', side_effect=lambda s: s in valid_states):
+    with patch('neighborhoods.query.state_qry.exists', side_effect=lambda s: s in valid_states), \
+         patch('server.endpoints.sqry.exists', side_effect=lambda s: s in valid_states):
         yield
 
 def test_get_neighborhoods(mock_neighborhood_db):
@@ -539,39 +572,39 @@ def test_get_property_by_id_db_unavailable(mock_is_db_up):
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
-@patch('neighborhoods.query.is_db_up', return_value=False, autospec=True)
+@patch('neighborhoods.query.dbc.is_db_up', return_value=False, autospec=True)
 def test_get_neighborhoods_db_unavailable(mock_is_db_up):
     resp = TEST_CLIENT.get(ep.NEIGHBORHOODS_EP)
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
-@patch('neighborhoods.query.is_db_up', return_value=False, autospec=True)
+@patch('neighborhoods.query.dbc.is_db_up', return_value=False, autospec=True)
 def test_get_neighborhood_by_id_db_unavailable(mock_is_db_up):
     dummy_id = "11111111-1111-1111-1111-111111111111"
     resp = TEST_CLIENT.get(f"{ep.NEIGHBORHOODS_EP}/{dummy_id}")
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
-@patch('neighborhoods.query.is_db_up', return_value=False, autospec=True)
+@patch('neighborhoods.query.dbc.is_db_up', return_value=False, autospec=True)
 def test_post_neighborhood_db_unavailable(mock_is_db_up, new_neighborhood):
     resp = TEST_CLIENT.post(ep.NEIGHBORHOODS_EP, json=new_neighborhood)
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
-@patch('neighborhoods.query.is_db_up', return_value=False, autospec=True)
+@patch('neighborhoods.query.dbc.is_db_up', return_value=False, autospec=True)
 def test_patch_neighborhood_db_unavailable(mock_is_db_up, existing_neighborhood_id):
     changes = {"name": "Doesn't Matter"}
     resp = TEST_CLIENT.patch(f"{ep.NEIGHBORHOODS_EP}/{existing_neighborhood_id}", json=changes)
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
-@patch('neighborhoods.query.is_db_up', return_value=False, autospec=True)
+@patch('neighborhoods.query.dbc.is_db_up', return_value=False, autospec=True)
 def test_delete_neighborhood_db_unavailable(mock_is_db_up, existing_neighborhood_id):
     resp = TEST_CLIENT.delete(f"{ep.NEIGHBORHOODS_EP}/{existing_neighborhood_id}")
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
-def test_get_state_neighborhoods(mock_neighborhood_db):
+def test_get_state_neighborhoods(mock_neighborhood_db, mock_states_db):
     resp = TEST_CLIENT.get(f'{ep.STATES_EP}/AL/neighborhoods')
     assert resp.status_code == OK
     neighborhoods = resp.get_json()[ep.NEIGHBORHOODS_RESP]
@@ -580,18 +613,18 @@ def test_get_state_neighborhoods(mock_neighborhood_db):
         assert neighborhood['state_id'] == 'AL'
 
 
-def test_get_state_neighborhoods_missing_state(mock_neighborhood_db):
+def test_get_state_neighborhoods_missing_state(mock_neighborhood_db, mock_states_db):
     resp = TEST_CLIENT.get(f'{ep.STATES_EP}/ZZ/neighborhoods')
     assert resp.status_code == NOT_FOUND
 
 
-def test_get_state_neighborhoods_empty(mock_neighborhood_db):
+def test_get_state_neighborhoods_empty(mock_neighborhood_db, mock_states_db):
     resp = TEST_CLIENT.get(f'{ep.STATES_EP}/AK/neighborhoods')
     assert resp.status_code == OK
     assert resp.get_json()[ep.NEIGHBORHOODS_RESP] == []
 
 
-def test_get_state_neighborhoods_only_that_state(mock_neighborhood_db):
+def test_get_state_neighborhoods_only_that_state(mock_neighborhood_db, mock_states_db):
     mock_neighborhood_db['99999999-aaaa-bbbb-cccc-dddddddddddd'] = {
         'name': 'Other State Neighborhood',
         'state_id': 'AK',
