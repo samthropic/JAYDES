@@ -1,7 +1,3 @@
-"""
-This is the file containing all of the endpoints for our flask app.
-The endpoint called `endpoints` will return all available endpoints.
-"""
 from http import HTTPStatus
 
 from flask import Flask  # , request
@@ -30,6 +26,7 @@ STATE_RESP = 'State:'
 MESSAGE = 'Message'
 REGIONS_EP = '/regions'
 REGIONS_RESP = 'Regions:'
+REGION_RESP = 'Region:'
 PROPERTIES_EP = '/properties'
 PROPERTIES_RESP = 'Properties:'
 PROPERTY_RESP = 'Property:'
@@ -53,6 +50,29 @@ state_input_model = api.model('StateInput', {
     'area_sq_miles': fields.Float(required=True),
     'region_id': fields.String(description='Id of an existing region',
                                example='NE'),
+})
+
+region_model = api.model('Region', {
+    rqry.ID: fields.String(description='Two-letter region code', example='NE'),
+    'name': fields.String(description='Region name', example='Northeast'),
+    'population': fields.Integer(description='Population'),
+    'description': fields.String(description='Region description',
+                                 example='Northeastern United States'),
+})
+
+region_input_model = api.model('RegionInput', {
+    rqry.ID: fields.String(required=True, example='NE',
+                           description='Two-letter region code'),
+    'name': fields.String(required=True, example='Northeast'),
+    'population': fields.Integer(required=True),
+    'description': fields.String(required=True,
+                                 example='Northeastern United States'),
+})
+
+region_update_model = api.model('RegionUpdate', {
+    'name': fields.String(description='Region name', example='Midwest'),
+    'population': fields.Integer(description='Population'),
+    'description': fields.String(description='Region description'),
 })
 
 neighborhood_model = api.model('Neighborhood', {
@@ -242,7 +262,7 @@ class Regions(Resource):
     """
     The get method will return a list of all regions in the database.
     """
-    @api.response(HTTPStatus.OK.value, 'Success')
+    @api.response(HTTPStatus.OK.value, 'Success', [region_model])
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def get(self):
         """
@@ -252,6 +272,85 @@ class Regions(Resource):
         if regions is None:
             raise wz.ServiceUnavailable('Database may be down.')
         return {REGIONS_RESP: regions}
+
+    @api.expect(region_input_model, validate=True)
+    @api.response(HTTPStatus.CREATED.value, 'Created', region_model)
+    @api.response(HTTPStatus.BAD_REQUEST.value, 'Invalid region data')
+    @api.response(HTTPStatus.CONFLICT.value, 'Region already exists')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def post(self):
+        """Create a region."""
+        data = api.payload
+        if not rqry.is_db_up():
+            raise wz.ServiceUnavailable('Database may be down.')
+        if rqry.exists(data[rqry.ID]):
+            raise wz.Conflict(f'Region {data[rqry.ID]} already exists.')
+
+        try:
+            region = rqry.create(
+                data[rqry.ID],
+                data['name'],
+                data['population'],
+                data.get('description'),
+            )
+        except ValueError as err:
+            raise wz.BadRequest(str(err))
+
+        created = {rqry.ID: data[rqry.ID], **region}
+        return {REGION_RESP: created}, HTTPStatus.CREATED
+
+
+@api.route(f'{REGIONS_EP}/<region_id>')
+class Region(Resource):
+    """Get, update, or delete a single region."""
+    @api.response(HTTPStatus.OK.value, 'Success', region_model)
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def get(self, region_id):
+        """Return a single region by id."""
+        if not rqry.is_db_up():
+            raise wz.ServiceUnavailable('Database may be down.')
+
+        region = rqry.read_one(region_id)
+        if region is None:
+            raise wz.NotFound(f'Region {region_id} not found.')
+        return {REGION_RESP: region}
+
+    @api.expect(region_update_model, validate=True)
+    @api.response(HTTPStatus.OK.value, 'Updated', region_model)
+    @api.response(HTTPStatus.BAD_REQUEST.value, 'Invalid region data')
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def patch(self, region_id):
+        """Update one or more fields on a region."""
+        if not rqry.is_db_up():
+            raise wz.ServiceUnavailable('Database may be down.')
+
+        changes = api.payload or {}
+        if not changes:
+            raise wz.BadRequest('At least one region field is required.')
+
+        try:
+            region = rqry.update(region_id, changes)
+        except ValueError as err:
+            raise wz.BadRequest(str(err))
+
+        if region is None:
+            raise wz.NotFound(f'Region {region_id} not found.')
+
+        return {REGION_RESP: region}
+
+    @api.response(HTTPStatus.NO_CONTENT.value, 'Deleted')
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def delete(self, region_id):
+        """Delete one region by id."""
+        if not rqry.is_db_up():
+            raise wz.ServiceUnavailable('Database may be down.')
+
+        if not rqry.delete(region_id):
+            raise wz.NotFound(f'Region {region_id} not found.')
+        return '', HTTPStatus.NO_CONTENT
 
 
 @api.route(NEIGHBORHOODS_EP)

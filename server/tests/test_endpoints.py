@@ -147,7 +147,7 @@ def test_get_regions():
     assert resp.status_code == OK
     resp_json = resp.get_json()
     assert ep.REGIONS_RESP in resp_json
-    assert isinstance(resp_json[ep.REGIONS_RESP], dict)
+    assert isinstance(resp_json[ep.REGIONS_RESP], list)
 
 
 @pytest.fixture
