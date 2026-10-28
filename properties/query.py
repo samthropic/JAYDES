@@ -2,10 +2,12 @@
 
 import math
 
+import data.db_connect as dbc
 from data.db_connect import is_db_up
 import neighborhoods.query as nqry
 
 ID = "id"
+PROPERTIES_COLLECTION = "properties"
 UPDATABLE_FIELDS = (
     "address", "neighborhood_id", "price", "bedrooms", "bathrooms",
     "latitude", "longitude",
@@ -14,7 +16,7 @@ UPDATABLE_FIELDS = (
 PROPERTY_TEST_DATA = {
     "prop-001": {
         "address": "125 Perry Street, New York, NY",
-        "neighborhood_id": "manhattan-west-village",
+        "neighborhood_id": "73a1b2c3-d4e5-6f7a-8b9c-0123456789ab",
         "price": 1850000,
         "bedrooms": 2,
         "bathrooms": 2,
@@ -23,7 +25,7 @@ PROPERTY_TEST_DATA = {
     },
     "prop-002": {
         "address": "210 West 89th Street, New York, NY",
-        "neighborhood_id": "manhattan-upper-west-side",
+        "neighborhood_id": "84b2c3d4-e5f6-7a8b-9c0d-123456789abc",
         "price": 2450000,
         "bedrooms": 3,
         "bathrooms": 2,
@@ -32,7 +34,7 @@ PROPERTY_TEST_DATA = {
     },
     "prop-003": {
         "address": "184 Bedford Avenue, Brooklyn, NY",
-        "neighborhood_id": "brooklyn-williamsburg",
+        "neighborhood_id": "d290f1ee-6c54-4b01-90e6-d701748f0851",
         "price": 1350000,
         "bedrooms": 2,
         "bathrooms": 2,
@@ -41,7 +43,7 @@ PROPERTY_TEST_DATA = {
     },
     "prop-004": {
         "address": "52 8th Avenue, Brooklyn, NY",
-        "neighborhood_id": "brooklyn-park-slope",
+        "neighborhood_id": "5f8a3c2b-1e9d-4a7b-8c6d-2f3e4a5b6c7d",
         "price": 1950000,
         "bedrooms": 3,
         "bathrooms": 2,
@@ -50,7 +52,7 @@ PROPERTY_TEST_DATA = {
     },
     "prop-005": {
         "address": "31-18 Broadway, Queens, NY",
-        "neighborhood_id": "queens-astoria",
+        "neighborhood_id": "9a8b7c6d-5e4f-3a2b-1c0d-9e8f7a6b5c4d",
         "price": 875000,
         "bedrooms": 2,
         "bathrooms": 1,
@@ -72,29 +74,66 @@ TEST_PROPERTY = {
 }
 
 
+def _ensure_seeded():
+    """Insert the sample properties when the collection is empty."""
+    dbc.connect_db()
+    if dbc.read(PROPERTIES_COLLECTION):
+        return
+    for property_id, data in PROPERTY_TEST_DATA.items():
+        dbc.create(PROPERTIES_COLLECTION, {ID: property_id, **data})
+
+
 def read(property_id: str = None):
     """
-    Return either a list of all properties or a single property by id.
+    Return all properties or the property with the requested id from seDB.
     """
     if not is_db_up():
         print("Database is down.")
         return None
+    _ensure_seeded()
     if property_id is None:
-        return [{ID: prop_id, **data}
-                for prop_id, data in PROPERTY_TEST_DATA.items()]
-    if property_id not in PROPERTY_TEST_DATA:
+        return dbc.read(PROPERTIES_COLLECTION)
+    property_record = dbc.read_one(PROPERTIES_COLLECTION, {ID: property_id})
+    if property_record is not None:
+        property_record.pop(dbc.MONGO_ID, None)
+    return property_record
+
+
+def search_by_price(min_price=None, max_price=None):
+    """Return properties within an inclusive price range from seDB."""
+    if min_price is None and max_price is None:
+        raise ValueError("At least one price bound is required.")
+    if min_price is not None and (
+            not _is_number(min_price) or min_price < 0):
+        raise ValueError("Minimum price must be a non-negative number.")
+    if max_price is not None and (
+            not _is_number(max_price) or max_price < 0):
+        raise ValueError("Maximum price must be a non-negative number.")
+    if (min_price is not None and max_price is not None
+            and min_price > max_price):
+        raise ValueError("Minimum price cannot exceed maximum price.")
+    if not is_db_up():
+        print("Database is down.")
         return None
-    return {ID: property_id, **PROPERTY_TEST_DATA[property_id]}
+
+    price_filter = {}
+    if min_price is not None:
+        price_filter["$gte"] = min_price
+    if max_price is not None:
+        price_filter["$lte"] = max_price
+    _ensure_seeded()
+    return dbc.read(PROPERTIES_COLLECTION, filt={"price": price_filter})
 
 
 def exists(property_id: str):
     """
-    Check if a property exists in the test data.
+    Check if a property exists in seDB.
     """
     if not is_db_up():
         print("Database is down.")
         return None
-    return property_id in PROPERTY_TEST_DATA
+    _ensure_seeded()
+    return dbc.read_one(PROPERTIES_COLLECTION, {ID: property_id}) is not None
 
 
 def _is_non_empty_string(value):
@@ -153,7 +192,7 @@ def _check_property_fields(address: str, neighborhood_id: str, price: float,
 def create(property_id: str, address: str, neighborhood_id: str,
            price: float, bedrooms: int, bathrooms: float,
            latitude: float, longitude: float):
-    """Create a property record in the in-memory test data."""
+    """Create a property record in seDB."""
     check_valid_property(
         property_id, address, neighborhood_id, price, bedrooms, bathrooms,
         latitude, longitude,
@@ -162,7 +201,8 @@ def create(property_id: str, address: str, neighborhood_id: str,
         print("Database is down.")
         return None
 
-    PROPERTY_TEST_DATA[property_id] = {
+    property_record = {
+        ID: property_id,
         "address": address,
         "neighborhood_id": neighborhood_id,
         "price": price,
@@ -171,7 +211,8 @@ def create(property_id: str, address: str, neighborhood_id: str,
         "latitude": latitude,
         "longitude": longitude,
     }
-    return {ID: property_id, **PROPERTY_TEST_DATA[property_id]}
+    dbc.create(PROPERTIES_COLLECTION, property_record)
+    return read(property_id)
 
 
 def update(property_id: str, changes: dict):
@@ -182,10 +223,13 @@ def update(property_id: str, changes: dict):
     unknown = set(changes) - set(UPDATABLE_FIELDS)
     if unknown:
         raise ValueError(f"Cannot update fields: {sorted(unknown)}.")
-    if property_id not in PROPERTY_TEST_DATA:
+    _ensure_seeded()
+    property_record = dbc.read_one(PROPERTIES_COLLECTION, {ID: property_id})
+    if property_record is None:
         return None
+    property_record.pop(dbc.MONGO_ID, None)
 
-    updated = {**PROPERTY_TEST_DATA[property_id], **changes}
+    updated = {**property_record, **changes}
     _check_property_fields(
         updated["address"], updated["neighborhood_id"], updated["price"],
         updated["bedrooms"], updated["bathrooms"], updated["latitude"],
@@ -193,8 +237,9 @@ def update(property_id: str, changes: dict):
     )
     if "neighborhood_id" in changes:
         _check_neighborhood_exists(updated["neighborhood_id"])
-    PROPERTY_TEST_DATA[property_id] = updated
-    return {ID: property_id, **updated}
+    if changes:
+        dbc.update(PROPERTIES_COLLECTION, {ID: property_id}, changes)
+    return read(property_id)
 
 
 def delete(property_id: str):
@@ -204,4 +249,5 @@ def delete(property_id: str):
     if not is_db_up():
         print("Database is down.")
         return None
-    return PROPERTY_TEST_DATA.pop(property_id, None) is not None
+    _ensure_seeded()
+    return dbc.delete(PROPERTIES_COLLECTION, {ID: property_id}) > 0
