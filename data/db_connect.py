@@ -106,12 +106,14 @@ def update(collection, filters, update_dict, db=SE_DB):
     return client[db][collection].update_one(filters, {'$set': update_dict})
 
 
-def read(collection, db=SE_DB, no_id=True) -> list:
+def read(collection, db=SE_DB, no_id=True, filt=None) -> list:
     """
     Returns a list from the db.
     """
+    if filt is None:
+        filt = {}
     ret = []
-    for doc in client[db][collection].find():
+    for doc in client[db][collection].find(filt):
         if no_id:
             del doc[MONGO_ID]
         else:

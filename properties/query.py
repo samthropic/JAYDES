@@ -99,6 +99,32 @@ def read(property_id: str = None):
     return property_record
 
 
+def search_by_price(min_price=None, max_price=None):
+    """Return properties within an inclusive price range from seDB."""
+    if min_price is None and max_price is None:
+        raise ValueError("At least one price bound is required.")
+    if min_price is not None and (
+            not _is_number(min_price) or min_price < 0):
+        raise ValueError("Minimum price must be a non-negative number.")
+    if max_price is not None and (
+            not _is_number(max_price) or max_price < 0):
+        raise ValueError("Maximum price must be a non-negative number.")
+    if (min_price is not None and max_price is not None
+            and min_price > max_price):
+        raise ValueError("Minimum price cannot exceed maximum price.")
+    if not is_db_up():
+        print("Database is down.")
+        return None
+
+    price_filter = {}
+    if min_price is not None:
+        price_filter["$gte"] = min_price
+    if max_price is not None:
+        price_filter["$lte"] = max_price
+    _ensure_seeded()
+    return dbc.read(PROPERTIES_COLLECTION, filt={"price": price_filter})
+
+
 def exists(property_id: str):
     """
     Check if a property exists in seDB.

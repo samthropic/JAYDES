@@ -390,6 +390,31 @@ def test_get_properties():
         assert 'neighborhood_id' in prop
 
 
+def test_search_properties_by_price():
+    resp = TEST_CLIENT.get(
+        f"{ep.PROPERTIES_EP}/search?min_price=1350000&max_price=1850000"
+    )
+    assert resp.status_code == OK
+    properties = resp.get_json()[ep.PROPERTIES_RESP]
+    assert {prop['id'] for prop in properties} == {'prop-001', 'prop-003'}
+
+
+@pytest.mark.parametrize(
+    "query_string",
+    [
+        "",
+        "min_price=invalid",
+        "min_price=nan",
+        "max_price=inf",
+        "max_price=-1",
+        "min_price=2000000&max_price=1000000",
+    ],
+)
+def test_search_properties_rejects_invalid_price_ranges(query_string):
+    resp = TEST_CLIENT.get(f"{ep.PROPERTIES_EP}/search?{query_string}")
+    assert resp.status_code == BAD_REQUEST
+
+
 NEW_PROPERTY = {
     'id': 'prop-api-test',
     'address': '1 Test Street, Test City, NY',
@@ -526,6 +551,12 @@ def test_get_regions_db_unavailable(mock_is_db_up):
 @patch('properties.query.is_db_up', return_value=False, autospec=True)
 def test_get_properties_db_unavailable(mock_is_db_up):
     resp = TEST_CLIENT.get(ep.PROPERTIES_EP)
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+@patch('properties.query.is_db_up', return_value=False, autospec=True)
+def test_search_properties_db_unavailable(mock_is_db_up):
+    resp = TEST_CLIENT.get(f"{ep.PROPERTIES_EP}/search?min_price=100")
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 

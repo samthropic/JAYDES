@@ -1,6 +1,6 @@
 from http import HTTPStatus
 
-from flask import Flask  # , request
+from flask import Flask, request
 from flask_restx import Resource, Api, fields  # Namespace
 from flask_cors import CORS
 
@@ -544,6 +544,41 @@ class Properties(Resource):
         except ValueError as err:
             raise wz.BadRequest(str(err))
         return {PROPERTY_RESP: property_record}, HTTPStatus.CREATED
+
+
+@api.route(f'{PROPERTIES_EP}/search')
+@api.doc(params={
+    'min_price': {
+        'description': 'Inclusive minimum property price',
+        'type': 'number',
+    },
+    'max_price': {
+        'description': 'Inclusive maximum property price',
+        'type': 'number',
+    },
+})
+class PropertySearch(Resource):
+    """Search properties by an inclusive minimum and/or maximum price."""
+    @api.response(HTTPStatus.OK.value, 'Success', [property_model])
+    @api.response(HTTPStatus.BAD_REQUEST.value, 'Invalid price range')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def get(self):
+        """Return properties matching the supplied price bounds."""
+        try:
+            min_price = (
+                float(request.args['min_price'])
+                if 'min_price' in request.args else None
+            )
+            max_price = (
+                float(request.args['max_price'])
+                if 'max_price' in request.args else None
+            )
+            properties = pqry.search_by_price(min_price, max_price)
+        except ValueError as err:
+            raise wz.BadRequest(str(err))
+        if properties is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        return {PROPERTIES_RESP: properties}
 
 
 @api.route(f'{PROPERTIES_EP}/<property_id>')

@@ -131,6 +131,34 @@ def test_read_returns_seeded_properties():
     assert all(dbc.MONGO_ID not in prop for prop in properties)
 
 
+@pytest.mark.parametrize(
+    ("min_price", "max_price", "expected_ids"),
+    [
+        (1350000, 1850000, {"prop-001", "prop-003"}),
+        (2000000, None, {"prop-002"}),
+        (None, 1000000, {"prop-005"}),
+    ],
+)
+def test_search_by_price(min_price, max_price, expected_ids):
+    properties = qry.search_by_price(min_price, max_price)
+    assert {prop["id"] for prop in properties} == expected_ids
+
+
+@pytest.mark.parametrize(
+    ("min_price", "max_price"),
+    [
+        (None, None),
+        (-1, None),
+        (None, float("nan")),
+        (200, 100),
+        (True, None),
+    ],
+)
+def test_search_by_price_rejects_invalid_ranges(min_price, max_price):
+    with pytest.raises(ValueError):
+        qry.search_by_price(min_price, max_price)
+
+
 def test_read_missing_property_returns_none():
     assert qry.read("missing-prop") is None
 
