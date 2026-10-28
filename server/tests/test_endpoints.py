@@ -166,6 +166,23 @@ def test_region_delete_conflict_in_swagger():
     assert '409' in schema['paths']['/regions/{region_id}']['delete']['responses']
 
 
+def test_region_states_includes_created_state(new_state):
+    response = TEST_CLIENT.post(ep.STATES_EP, json=new_state)
+    assert response.status_code == CREATED
+    response = TEST_CLIENT.get(f'{ep.REGIONS_EP}/NE/states')
+    assert response.status_code == OK
+    assert [state['id'] for state in response.get_json()[ep.STATES_RESP]] == ['TS']
+
+
+def test_region_states_reflects_reassignment():
+    TEST_CLIENT.get(f'{ep.REGIONS_EP}/SE/states')
+    sqry.update('AL', {'region_id': 'NE'})
+    old_region = TEST_CLIENT.get(f'{ep.REGIONS_EP}/SE/states')
+    new_region = TEST_CLIENT.get(f'{ep.REGIONS_EP}/NE/states')
+    assert old_region.get_json()[ep.STATES_RESP] == []
+    assert [state['id'] for state in new_region.get_json()[ep.STATES_RESP]] == ['AL']
+
+
 def test_get_regions():
     resp = TEST_CLIENT.get(ep.REGIONS_EP)
     assert resp.status_code == OK

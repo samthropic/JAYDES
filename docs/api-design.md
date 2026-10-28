@@ -41,6 +41,17 @@ Example: Northeast (`NE`) -> New York (`NY`) -> Chelsea -> 123 W 20th St.
 
 Swagger docs are served by flask-restx at `/swagger.json`.
 
+### States within a region
+
+`GET /regions/{region_id}/states` returns only states whose `region_id`
+matches the requested region, wrapped as `{"States:": [...]}`. Each state
+includes its `region_id`. An existing region with no states returns HTTP 200
+with `{"States:": []}`. A missing region returns 404; an unavailable region
+or state lookup returns 503.
+
+`DELETE /regions/{region_id}` returns 409 while any state references the
+region. Reassign or delete those states before deleting their region.
+
 ## Response formats
 
 List endpoints wrap the collection in a labeled object:

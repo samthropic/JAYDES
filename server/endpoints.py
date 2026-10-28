@@ -39,6 +39,12 @@ state_model = api.model('State', {
     'capital': fields.String(description='State capital', example='Albany'),
     'population': fields.Integer(description='Population'),
     'area_sq_miles': fields.Float(description='Area in square miles'),
+    'region_id': fields.String(description='Id of the parent region',
+                               example='NE'),
+})
+
+region_states_model = api.model('RegionStates', {
+    STATES_RESP: fields.List(fields.Nested(state_model)),
 })
 
 state_input_model = api.model('StateInput', {
@@ -356,6 +362,28 @@ class Region(Resource):
         if not deleted:
             raise wz.NotFound(f'Region {region_id} not found.')
         return '', HTTPStatus.NO_CONTENT
+
+
+@api.route(f'{REGIONS_EP}/<region_id>/states')
+class RegionStates(Resource):
+    """States belonging to an existing region."""
+
+    @api.response(HTTPStatus.OK.value, 'Success', region_states_model)
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Region Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def get(self, region_id):
+        """List states in a region; an empty region returns an empty list."""
+        region_exists = rqry.exists(region_id)
+        if region_exists is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        if not region_exists:
+            raise wz.NotFound(f'Region {region_id} not found.')
+
+        states = sqry.read()
+        if states is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        return {STATES_RESP: [state for state in states
+                              if state.get('region_id') == region_id]}
 
 
 @api.route(NEIGHBORHOODS_EP)
