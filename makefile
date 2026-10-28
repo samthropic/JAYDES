@@ -23,7 +23,7 @@ all_tests: FORCE
 	cd $(STATES_DIR); make tests
 	cd $(NEIGHBORHOODS_DIR); make tests
 	cd $(REGIONS_DIR); make tests
-	# cd $(DB_DIR); make tests
+	cd $(DB_DIR); make tests
 	cd $(PROPERTIES_DIR); make tests
 
 dev_env: FORCE
