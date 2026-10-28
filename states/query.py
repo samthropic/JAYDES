@@ -10,6 +10,7 @@ STATE_CODE_LEN = 2
 ID = 'id'
 STATES_COLLECTION = 'states'
 STATES_CACHE = 'states'
+NEIGHBORHOODS_COLLECTION = 'neighborhoods'
 UPDATABLE_FIELDS = ('name', 'capital', 'population', 'area_sq_miles',
                     'region_id')
 
@@ -46,6 +47,10 @@ STATE_TEST_DATA = {
     },
     # Add more states as needed
 }
+
+
+class StateHasNeighborhoodsError(Exception):
+    """Raised when deleting a state that neighborhoods still reference."""
 
 
 def _state_docs():
@@ -195,11 +200,19 @@ def delete(state_code: str):
     """
     Delete a state from seDB. Return True if it was deleted, False if there
     is no such state, and None if the database is down.
+    Raise StateHasNeighborhoodsError if any neighborhood references the state.
     """
     if not is_db_up():
         print("Database is down.")
         return None
     _ensure_seeded()
+    if dbc.read_one(NEIGHBORHOODS_COLLECTION,
+                    {'state_id': state_code}) is not None:
+        raise StateHasNeighborhoodsError(
+            f'State {state_code} still has neighborhoods. '
+            'Reassign or delete those neighborhoods before deleting the '
+            'state.'
+        )
     deleted = dbc.delete(STATES_COLLECTION, {ID: state_code}) > 0
     if deleted:
         cache.invalidate(STATES_CACHE)

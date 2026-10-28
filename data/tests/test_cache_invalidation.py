@@ -29,9 +29,10 @@ def test_state_update_replaces_stale_cache():
 
 
 def test_state_delete_clears_cached_list():
-    sqry.read()
-    assert sqry.delete('AL') is True
-    assert _by_id(sqry.read(), 'AL') is None
+    sqry.create('TS', 1000000, 'Test Capital', 50000, 'Test State')
+    assert _by_id(sqry.read(), 'TS') is not None
+    assert sqry.delete('TS') is True
+    assert _by_id(sqry.read(), 'TS') is None
 
 
 def test_region_create_clears_cached_list():
