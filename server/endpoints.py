@@ -343,12 +343,17 @@ class Region(Resource):
     @api.response(HTTPStatus.NO_CONTENT.value, 'Deleted')
     @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    @api.response(HTTPStatus.CONFLICT.value, 'Region still has states')
     def delete(self, region_id):
-        """Delete one region by id."""
+        """Delete a region only when no states reference it."""
         if not rqry.is_db_up():
             raise wz.ServiceUnavailable('Database may be down.')
 
-        if not rqry.delete(region_id):
+        try:
+            deleted = rqry.delete(region_id)
+        except rqry.RegionHasStatesError as err:
+            raise wz.Conflict(str(err))
+        if not deleted:
             raise wz.NotFound(f'Region {region_id} not found.')
         return '', HTTPStatus.NO_CONTENT
 

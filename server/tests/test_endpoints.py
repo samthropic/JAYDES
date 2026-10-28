@@ -142,6 +142,30 @@ def test_post_state_db_unavailable(mock_is_db_up, new_state):
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
+def test_delete_region_with_states():
+    resp = TEST_CLIENT.delete(f'{ep.REGIONS_EP}/SE')
+    assert resp.status_code == CONFLICT
+    assert 'still has states' in resp.get_json()['message']
+    assert TEST_CLIENT.get(f'{ep.REGIONS_EP}/SE').status_code == OK
+    assert sqry.read_one('AL')['region_id'] == 'SE'
+
+
+def test_delete_region_without_states():
+    resp = TEST_CLIENT.delete(f'{ep.REGIONS_EP}/NE')
+    assert resp.status_code == NO_CONTENT
+    assert TEST_CLIENT.get(f'{ep.REGIONS_EP}/NE').status_code == NOT_FOUND
+
+
+def test_delete_missing_region():
+    resp = TEST_CLIENT.delete(f'{ep.REGIONS_EP}/ZZ')
+    assert resp.status_code == NOT_FOUND
+
+
+def test_region_delete_conflict_in_swagger():
+    schema = TEST_CLIENT.get('/swagger.json').get_json()
+    assert '409' in schema['paths']['/regions/{region_id}']['delete']['responses']
+
+
 def test_get_regions():
     resp = TEST_CLIENT.get(ep.REGIONS_EP)
     assert resp.status_code == OK
