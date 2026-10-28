@@ -2,6 +2,7 @@
 All interaction with MongoDB should be through this file!
 We may be required to use a new database at any point.
 """
+import functools
 import os
 
 import pymongo as pm
@@ -48,6 +49,19 @@ def connect_db():
     return client
 
 
+def needs_db(func):
+    """
+    Decorator for functions that use the global client. It makes sure the
+    client exists before the function runs, so callers never have to
+    remember to call connect_db() first.
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        connect_db()
+        return func(*args, **kwargs)
+    return wrapper
+
+
 def is_db_up():
     """
     Return True when MongoDB accepts a ping.
@@ -65,6 +79,7 @@ def convert_mongo_id(doc: dict):
         doc[MONGO_ID] = str(doc[MONGO_ID])
 
 
+@needs_db
 def create(collection, doc, db=SE_DB):
     """
     Insert a single doc into collection.
@@ -73,6 +88,7 @@ def create(collection, doc, db=SE_DB):
     return client[db][collection].insert_one(doc)
 
 
+@needs_db
 def read_one(collection, filt, db=SE_DB):
     """
     Find with a filter and return on the first doc found.
@@ -83,6 +99,7 @@ def read_one(collection, filt, db=SE_DB):
         return doc
 
 
+@needs_db
 def delete(collection: str, filt: dict, db=SE_DB):
     """
     Find with a filter and return on the first doc found.
@@ -92,6 +109,7 @@ def delete(collection: str, filt: dict, db=SE_DB):
     return del_result.deleted_count
 
 
+@needs_db
 def delete_many(collection, filt=None, db=SE_DB):
     """
     Delete every document matching filt. An empty filt clears the collection.
@@ -102,10 +120,12 @@ def delete_many(collection, filt=None, db=SE_DB):
     return del_result.deleted_count
 
 
+@needs_db
 def update(collection, filters, update_dict, db=SE_DB):
     return client[db][collection].update_one(filters, {'$set': update_dict})
 
 
+@needs_db
 def read(collection, db=SE_DB, no_id=True, filt=None) -> list:
     """
     Returns a list from the db.
@@ -130,6 +150,7 @@ def read_dict(collection, key, db=SE_DB, no_id=True) -> dict:
     return recs_as_dict
 
 
+@needs_db
 def fetch_all_as_dict(key, collection, db=SE_DB):
     ret = {}
     for doc in client[db][collection].find():
