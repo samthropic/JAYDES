@@ -2,19 +2,9 @@ from unittest.mock import patch
 
 import pytest
 
+import data.db_connect as dbc
+from data.db_fixture import clear_properties as clear_property_collection
 import properties.query as qry
-
-PROPERTY_TEST_DATA = {
-    "prop-001": {
-        "address": "125 Perry Street, New York, NY",
-        "neighborhood_id": "manhattan-west-village",
-        "price": 1850000,
-        "bedrooms": 2,
-        "bathrooms": 2,
-        "latitude": 40.7358,
-        "longitude": -74.0068,
-    },
-}
 
 
 @pytest.fixture
@@ -31,44 +21,40 @@ def test_property():
     }
 
 
-@patch.object(qry, "PROPERTY_TEST_DATA", PROPERTY_TEST_DATA)
+@pytest.fixture(autouse=True)
+def isolated_properties_collection():
+    clear_property_collection()
+    yield
+    clear_property_collection()
+
+
 def test_check_valid_property(test_property):
     with patch("properties.query.nqry.exists", return_value=True):
         assert qry.check_valid_property(**test_property)
 
 
 def test_create_property(test_property):
-    with patch.object(qry, "PROPERTY_TEST_DATA", dict(PROPERTY_TEST_DATA)):
-        with patch("properties.query.nqry.exists", return_value=True):
-            created = qry.create(**test_property)
-
-        expected_stored = {key: value for key, value in test_property.items()
-                           if key != "property_id"}
-        assert (qry.PROPERTY_TEST_DATA[test_property["property_id"]]
-                == expected_stored)
+    with patch("properties.query.nqry.exists", return_value=True):
+        created = qry.create(**test_property)
 
     assert created == {
         "id": test_property["property_id"],
         **{key: value for key, value in test_property.items()
            if key != "property_id"},
     }
+    assert qry.read(test_property["property_id"]) == created
 
 
 def test_create_property_requires_existing_neighborhood(test_property):
-    with patch.object(qry, "PROPERTY_TEST_DATA", dict(PROPERTY_TEST_DATA)):
-        with patch("properties.query.nqry.exists", return_value=False):
-            with pytest.raises(ValueError, match="does not exist"):
-                qry.create(**test_property)
+    with patch("properties.query.nqry.exists", return_value=False):
+        with pytest.raises(ValueError, match="does not exist"):
+            qry.create(**test_property)
 
 
 def test_update_property(test_property):
-    test_data = {"prop-test": {
-        key: value for key, value in test_property.items()
-        if key != "property_id"
-    }}
-    with patch.object(qry, "PROPERTY_TEST_DATA", test_data):
-        with patch("properties.query.nqry.exists", return_value=True):
-            updated = qry.update("prop-test", {"price": 300000})
+    with patch("properties.query.nqry.exists", return_value=True):
+        qry.create(**test_property)
+        updated = qry.update("prop-test", {"price": 300000})
 
     assert updated["id"] == "prop-test"
     assert updated["price"] == 300000
@@ -84,45 +70,34 @@ def test_update_property(test_property):
     ],
 )
 def test_update_property_rejects_invalid_changes(test_property, changes,
-                                                  message):
-    test_data = {"prop-test": {
-        key: value for key, value in test_property.items()
-        if key != "property_id"
-    }}
-    with patch.object(qry, "PROPERTY_TEST_DATA", test_data):
-        neighborhood_exists = (
-            changes.get("neighborhood_id", test_property["neighborhood_id"])
-            == test_property["neighborhood_id"]
-        )
-        with patch("properties.query.nqry.exists",
-                   return_value=neighborhood_exists):
-            with pytest.raises(ValueError, match=message):
-                qry.update("prop-test", changes)
+                                                 message):
+    with patch("properties.query.nqry.exists", return_value=True):
+        qry.create(**test_property)
+    neighborhood_exists = (
+        changes.get("neighborhood_id", test_property["neighborhood_id"])
+        == test_property["neighborhood_id"]
+    )
+    with patch("properties.query.nqry.exists",
+               return_value=neighborhood_exists):
+        with pytest.raises(ValueError, match=message):
+            qry.update("prop-test", changes)
 
 
 def test_update_missing_property_returns_none():
-    with patch.object(qry, "PROPERTY_TEST_DATA", {}):
-        assert qry.update("missing-property", {"price": 100}) is None
+    assert qry.update("missing-property", {"price": 100}) is None
 
 
 def test_delete_property():
-    with patch.object(qry, "PROPERTY_TEST_DATA", dict(PROPERTY_TEST_DATA)):
-        assert qry.delete("prop-001") is True
-        assert qry.delete("prop-001") is False
+    assert qry.delete("prop-001") is True
+    assert qry.delete("prop-001") is False
 
 
 @patch("properties.query.is_db_up", return_value=False)
-def test_update_and_delete_database_unavailable(mock_is_db_up, test_property):
-    test_data = {"prop-test": {
-        key: value for key, value in test_property.items()
-        if key != "property_id"
-    }}
-    with patch.object(qry, "PROPERTY_TEST_DATA", test_data):
-        assert qry.update("prop-test", {"price": 100}) is None
-        assert qry.delete("prop-test") is None
+def test_update_and_delete_database_unavailable(mock_is_db_up):
+    assert qry.update("prop-test", {"price": 100}) is None
+    assert qry.delete("prop-test") is None
 
 
-@patch.object(qry, "PROPERTY_TEST_DATA", PROPERTY_TEST_DATA)
 def test_each_property_has_required_fields():
     required_fields = {
         "address",
@@ -142,7 +117,6 @@ def test_each_property_has_required_fields():
         assert property_data["neighborhood_id"]
 
 
-@patch.object(qry, "PROPERTY_TEST_DATA", PROPERTY_TEST_DATA)
 def test_property_exists_and_read_returns_record():
     assert qry.exists("prop-001")
     prop = qry.read("prop-001")
@@ -150,29 +124,30 @@ def test_property_exists_and_read_returns_record():
     assert prop["address"]
 
 
-@patch.object(qry, "PROPERTY_TEST_DATA", PROPERTY_TEST_DATA)
+def test_read_returns_seeded_properties():
+    properties = qry.read()
+    assert len(properties) == len(qry.PROPERTY_TEST_DATA)
+    assert {prop["id"] for prop in properties} == set(qry.PROPERTY_TEST_DATA)
+    assert all(dbc.MONGO_ID not in prop for prop in properties)
+
+
 def test_read_missing_property_returns_none():
     assert qry.read("missing-prop") is None
 
+
 @pytest.mark.parametrize(
     "property_id",
-    [
-        pytest.param("", id="empty"),
-        pytest.param(
-            "prop-001",
-            id="duplicate",
-            marks=pytest.mark.skip(reason="Covered by the patched duplicate-id test."),
-        ),
-    ],
+    [pytest.param("", id="empty")],
 )
-@patch.object(qry, "PROPERTY_TEST_DATA", PROPERTY_TEST_DATA)
 def test_check_valid_property_invalid_id(property_id, test_property):
     with pytest.raises(ValueError):
-        qry.check_valid_property(**{**test_property, "property_id": property_id})
+        qry.check_valid_property(
+            **{**test_property, "property_id": property_id}
+        )
 
 
-@patch.object(qry, "PROPERTY_TEST_DATA", {"prop-test": {}})
 def test_check_valid_property_duplicate_id(test_property):
+    test_property["property_id"] = "prop-001"
     with pytest.raises(ValueError):
         qry.check_valid_property(**test_property)
 
@@ -184,7 +159,6 @@ def test_check_valid_property_duplicate_id(test_property):
         pytest.param("neighborhood_id", "", id="neighborhood-id"),
     ],
 )
-@patch.object(qry, "PROPERTY_TEST_DATA", PROPERTY_TEST_DATA)
 def test_check_valid_property_empty_required_text(field, value, test_property):
     with pytest.raises(ValueError):
         qry.check_valid_property(**{**test_property, field: value})
@@ -204,7 +178,6 @@ def test_check_valid_property_empty_required_text(field, value, test_property):
         pytest.param("bathrooms", float("inf"), id="infinite-bathrooms"),
     ],
 )
-@patch.object(qry, "PROPERTY_TEST_DATA", PROPERTY_TEST_DATA)
 def test_check_valid_property_bad_numeric_fields(field, value, test_property):
     with pytest.raises(ValueError):
         qry.check_valid_property(**{**test_property, field: value})
@@ -219,7 +192,6 @@ def test_check_valid_property_bad_numeric_fields(field, value, test_property):
         pytest.param("longitude", float("inf"), id="infinite-longitude"),
     ],
 )
-@patch.object(qry, "PROPERTY_TEST_DATA", PROPERTY_TEST_DATA)
 def test_check_valid_property_bad_coordinates(field, value, test_property):
     with pytest.raises(ValueError):
         qry.check_valid_property(**{**test_property, field: value})

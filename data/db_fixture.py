@@ -3,8 +3,15 @@ Load a known set of states and regions into seDB for tests.
 """
 import data.cache as cache
 import data.db_connect as dbc
+import properties.query as pqry
 import regions.query as rqry
 import states.query as sqry
+
+
+def clear_properties():
+    """Remove every document from the properties collection."""
+    dbc.connect_db()
+    dbc.delete_many(pqry.PROPERTIES_COLLECTION)
 
 
 def clear_states_and_regions():

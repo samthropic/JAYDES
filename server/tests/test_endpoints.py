@@ -17,7 +17,6 @@ import pytest
 from server import endpoints as ep
 import states.query as sqry
 import neighborhoods.query as nqry
-import properties.query as pqry
 
 TEST_CLIENT = ep.app.test_client()
 
@@ -404,8 +403,7 @@ NEW_PROPERTY = {
 
 
 def test_post_property():
-    with patch.dict(pqry.PROPERTY_TEST_DATA):
-        resp = TEST_CLIENT.post(ep.PROPERTIES_EP, json=NEW_PROPERTY)
+    resp = TEST_CLIENT.post(ep.PROPERTIES_EP, json=NEW_PROPERTY)
 
     assert resp.status_code == CREATED
     property_record = resp.get_json()[ep.PROPERTY_RESP]
@@ -456,10 +454,9 @@ def test_get_missing_property_by_id():
 
 
 def test_patch_property():
-    with patch.dict(pqry.PROPERTY_TEST_DATA):
-        resp = TEST_CLIENT.patch(
-            f"{ep.PROPERTIES_EP}/prop-001", json={"price": 1900000}
-        )
+    resp = TEST_CLIENT.patch(
+        f"{ep.PROPERTIES_EP}/prop-001", json={"price": 1900000}
+    )
 
     assert resp.status_code == OK
     property_record = resp.get_json()[ep.PROPERTY_RESP]
@@ -504,8 +501,7 @@ def test_patch_property_db_unavailable(mock_is_db_up):
 
 
 def test_delete_property():
-    with patch.dict(pqry.PROPERTY_TEST_DATA):
-        resp = TEST_CLIENT.delete(f"{ep.PROPERTIES_EP}/prop-001")
+    resp = TEST_CLIENT.delete(f"{ep.PROPERTIES_EP}/prop-001")
 
     assert resp.status_code == NO_CONTENT
 

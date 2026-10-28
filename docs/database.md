@@ -42,7 +42,8 @@ Not in the repository yet. Jacob adds this collection.
 
 ### `properties`
 
-Not in the repository yet. Danny adds this collection.
+Stored in the `properties` collection. `PROPERTY_TEST_DATA` in
+`properties/query.py` is inserted when the collection is empty.
 
 | Field | Required | Notes |
 |-------|----------|--------|
@@ -50,10 +51,10 @@ Not in the repository yet. Danny adds this collection.
 | `address` | yes | |
 | `neighborhood_id` | yes | `id` of an existing neighborhood |
 | `price` | yes | Non-negative number |
-| `bedrooms` | yes | Non-negative number |
+| `bedrooms` | yes | Non-negative integer |
 | `bathrooms` | yes | Non-negative number |
-| `latitude` | yes | |
-| `longitude` | yes | |
+| `latitude` | yes | Between -90 and 90 |
+| `longitude` | yes | Between -180 and 180 |
 
 ## Relationships
 
@@ -110,6 +111,6 @@ Each of those test runs uses `data/db_fixture.py`. Before a test, it clears the 
 | `regions` | `REGION_TEST_DATA` in `regions/query.py` | `NE`, `SE`, `MW`, including `name`, `population`, and `description`. The dictionary key becomes `id`. |
 | `states` (optional fuller list) | `states/raw_data/states.csv` | Columns `Abbrev`, `Latitude`, `Longitude`, `State`. `states/load.py` only prints these rows. It does not insert them. Coordinates are not fields on the state record yet. |
 | `neighborhoods` | `neighborhoods/query.py`, when it exists | At least five neighborhoods whose `state_id` is `AL`, `AK`, or `AZ`. |
-| `properties` | `properties/query.py`, when it exists | At least five properties whose `neighborhood_id` matches a neighborhood. |
+| `properties` | `PROPERTY_TEST_DATA` in `properties/query.py` | At least five properties; the dictionary key becomes `id`. The referenced neighborhood ids must exist in the neighborhoods collection. |
 
 `data/bkup/games.json` and `data/bkup/users.json` are backups of the old `gamesDB` database. They are not seed data for this API. Do not import them into `seDB`.
