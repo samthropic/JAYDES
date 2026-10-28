@@ -48,7 +48,7 @@ def test_check_valid_region_empty_name():
 
 def test_query():
     regions = qry.read()
-    assert isinstance(regions, dict)
+    assert isinstance(regions, list)
 
 
 @pytest.mark.skip(reason='delete() still removes a region that has states')
