@@ -259,15 +259,21 @@ class State(Resource):
 
     @api.response(HTTPStatus.NO_CONTENT.value, 'Deleted')
     @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.CONFLICT.value, 'State still has neighborhoods')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def delete(self, state_id):
         """
-        The delete method will delete a state by its two-letter code.
+        The delete method will delete a state only when no neighborhoods
+        reference it.
         """
         if not sqry.is_db_up():
             raise wz.ServiceUnavailable('Database may be down.')
 
-        if not sqry.delete(state_id):
+        try:
+            deleted = sqry.delete(state_id)
+        except sqry.StateHasNeighborhoodsError as err:
+            raise wz.Conflict(str(err))
+        if not deleted:
             raise wz.NotFound(f'State {state_id} not found.')
         return '', HTTPStatus.NO_CONTENT
 

@@ -106,11 +106,30 @@ def test_patch_state_db_unavailable(mock_is_db_up):
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
-def test_delete_state():
-    resp = TEST_CLIENT.delete(f'{ep.STATES_EP}/AL')
+@pytest.fixture
+def neighborhood_in_al():
+    """A neighborhood that references state AL, removed after the test."""
+    doc = {'id': 'test-neighborhood', 'name': 'Test', 'state_id': 'AL'}
+    nqry.dbc.create(nqry.NEIGHBORHOODS_COLLECTION, dict(doc))
+    yield doc
+    nqry.dbc.delete(nqry.NEIGHBORHOODS_COLLECTION, {'id': doc['id']})
+
+
+def test_delete_state(new_state):
+    resp = TEST_CLIENT.post(ep.STATES_EP, json=new_state)
+    assert resp.status_code == CREATED
+    resp = TEST_CLIENT.delete(f'{ep.STATES_EP}/{new_state["id"]}')
     assert resp.status_code == NO_CONTENT
-    resp = TEST_CLIENT.get(f'{ep.STATES_EP}/AL')
+    resp = TEST_CLIENT.get(f'{ep.STATES_EP}/{new_state["id"]}')
     assert resp.status_code == NOT_FOUND
+
+
+def test_delete_state_with_neighborhoods(neighborhood_in_al):
+    resp = TEST_CLIENT.delete(f'{ep.STATES_EP}/AL')
+    assert resp.status_code == CONFLICT
+    assert 'still has neighborhoods' in resp.get_json()['message']
+    resp = TEST_CLIENT.get(f'{ep.STATES_EP}/AL')
+    assert resp.status_code == OK
 
 
 def test_delete_missing_state():

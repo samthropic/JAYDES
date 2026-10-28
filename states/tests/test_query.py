@@ -106,9 +106,29 @@ def test_update_unknown_region():
         qry.update('AL', {'region_id': 'ZZ'})
 
 
+@pytest.fixture
+def neighborhood_in_al():
+    """A neighborhood that references state AL, removed after the test."""
+    doc = {'id': 'test-neighborhood', 'name': 'Test', 'state_id': 'AL'}
+    qry.dbc.create(qry.NEIGHBORHOODS_COLLECTION, dict(doc))
+    yield doc
+    qry.dbc.delete(qry.NEIGHBORHOODS_COLLECTION, {'id': doc['id']})
+
+
 def test_delete():
-    assert qry.delete('AL') is True
-    assert qry.read_one('AL') is None
+    qry.create(TEST_ST['state_code'],
+               TEST_ST['population'],
+               TEST_ST['capital'],
+               TEST_ST['area_sq_miles'],
+               TEST_ST['name'])
+    assert qry.delete(TEST_ST['state_code']) is True
+    assert qry.read_one(TEST_ST['state_code']) is None
+
+
+def test_delete_state_with_neighborhoods(neighborhood_in_al):
+    with pytest.raises(qry.StateHasNeighborhoodsError):
+        qry.delete('AL')
+    assert qry.read_one('AL') is not None
 
 
 def test_delete_not_found():
