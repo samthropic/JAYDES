@@ -84,6 +84,8 @@ MongoDB listens on `localhost:27017`. Leave `CLOUD_MONGO` unset, or set it to `0
 
 `is_db_up()` calls `connect_db()` and pings the server. A failed ping makes `states.query.read()` and `regions.query.read()` return `None`, and `GET /states` and `GET /regions` respond with HTTP 503.
 
+`data/cache.py` keeps the latest state and region lists in memory. `read()` uses that copy until `create()`, `update()`, or `delete()` clears it. The test fixture clears the cache when it resets the collections.
+
 ## Running tests
 
 From the repository root, after the local setup above:
