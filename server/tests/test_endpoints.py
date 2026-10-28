@@ -71,6 +71,41 @@ def test_get_state_by_id_db_unavailable(mock_is_db_up):
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
+def test_patch_state():
+    resp = TEST_CLIENT.patch(f'{ep.STATES_EP}/AL',
+                             json={'capital': 'Birmingham'})
+    assert resp.status_code == OK
+    assert resp.get_json()[ep.STATE_RESP]['capital'] == 'Birmingham'
+    resp = TEST_CLIENT.get(f'{ep.STATES_EP}/AL')
+    assert resp.get_json()[ep.STATE_RESP]['capital'] == 'Birmingham'
+
+
+def test_patch_missing_state():
+    resp = TEST_CLIENT.patch(f'{ep.STATES_EP}/ZZ', json={'capital': 'X'})
+    assert resp.status_code == NOT_FOUND
+
+
+def test_patch_state_empty_body():
+    resp = TEST_CLIENT.patch(f'{ep.STATES_EP}/AL', json={})
+    assert resp.status_code == BAD_REQUEST
+
+
+def test_patch_state_unknown_field():
+    resp = TEST_CLIENT.patch(f'{ep.STATES_EP}/AL', json={'flag': 'red'})
+    assert resp.status_code == BAD_REQUEST
+
+
+def test_patch_state_unknown_region():
+    resp = TEST_CLIENT.patch(f'{ep.STATES_EP}/AL', json={'region_id': 'ZZ'})
+    assert resp.status_code == BAD_REQUEST
+
+
+@patch('states.query.is_db_up', return_value=False, autospec=True)
+def test_patch_state_db_unavailable(mock_is_db_up):
+    resp = TEST_CLIENT.patch(f'{ep.STATES_EP}/AL', json={'capital': 'X'})
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
 def test_delete_state():
     resp = TEST_CLIENT.delete(f'{ep.STATES_EP}/AL')
     assert resp.status_code == NO_CONTENT

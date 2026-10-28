@@ -106,6 +106,15 @@ neighborhood_update_model = api.model('NeighborhoodUpdate', {
                               example='NY'),
 })
 
+state_update_model = api.model('StateUpdate', {
+    'name': fields.String(example='New York'),
+    'capital': fields.String(example='Albany'),
+    'population': fields.Integer(),
+    'area_sq_miles': fields.Float(),
+    'region_id': fields.String(description='Id of an existing region',
+                               example='NE'),
+})
+
 property_model = api.model('Property', {
     'id': fields.String(required=True, description='Property id'),
     'address': fields.String(required=True, description='Property address',
@@ -219,6 +228,31 @@ class State(Resource):
             raise wz.ServiceUnavailable('Database may be down.')
 
         state = sqry.read_one(state_id)
+        if state is None:
+            raise wz.NotFound(f'State {state_id} not found.')
+        return {STATE_RESP: state}
+
+    @api.expect(state_update_model, validate=True)
+    @api.response(HTTPStatus.OK.value, 'Updated', state_model)
+    @api.response(HTTPStatus.BAD_REQUEST.value, 'Invalid state data')
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def patch(self, state_id):
+        """
+        The patch method will update one or more fields of a state.
+        """
+        if not sqry.is_db_up():
+            raise wz.ServiceUnavailable('Database may be down.')
+
+        changes = api.payload or {}
+        if not changes:
+            raise wz.BadRequest('At least one state field is required.')
+
+        try:
+            state = sqry.update(state_id, changes)
+        except ValueError as err:
+            raise wz.BadRequest(str(err))
+
         if state is None:
             raise wz.NotFound(f'State {state_id} not found.')
         return {STATE_RESP: state}
