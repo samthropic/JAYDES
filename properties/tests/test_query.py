@@ -145,6 +145,30 @@ def test_search_by_price(min_price, max_price, expected_ids):
 
 
 @pytest.mark.parametrize(
+    ("min_bedrooms", "max_bedrooms", "expected_ids"),
+    [
+        (2, 2, {"prop-001", "prop-003", "prop-005"}),
+        (3, 3, {"prop-002", "prop-004"}),
+    ],
+)
+def test_search_by_bedrooms(min_bedrooms, max_bedrooms, expected_ids):
+    properties = qry.search_by_bedrooms(min_bedrooms, max_bedrooms)
+    assert {prop["id"] for prop in properties} == expected_ids
+
+
+@pytest.mark.parametrize(
+    ("min_bathrooms", "max_bathrooms", "expected_ids"),
+    [
+        (2, 2, {"prop-001", "prop-002", "prop-003", "prop-004"}),
+        (1, 1, {"prop-005"}),
+    ],
+)
+def test_search_by_bathrooms(min_bathrooms, max_bathrooms, expected_ids):
+    properties = qry.search_by_bathrooms(min_bathrooms, max_bathrooms)
+    assert {prop["id"] for prop in properties} == expected_ids
+
+
+@pytest.mark.parametrize(
     ("min_price", "max_price"),
     [
         (None, None),

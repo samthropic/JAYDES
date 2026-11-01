@@ -596,28 +596,81 @@ class Properties(Resource):
         'description': 'Inclusive maximum property price',
         'type': 'number',
     },
+    'min_bedrooms': {
+        'description': 'Inclusive minimum bedroom count',
+        'type': 'number',
+    },
+    'max_bedrooms': {
+        'description': 'Inclusive maximum bedroom count',
+        'type': 'number',
+    },
+    'min_bathrooms': {
+        'description': 'Inclusive minimum bathroom count',
+        'type': 'number',
+    },
+    'max_bathrooms': {
+        'description': 'Inclusive maximum bathroom count',
+        'type': 'number',
+    },
 })
 class PropertySearch(Resource):
-    """Search properties by an inclusive minimum and/or maximum price."""
+    """Search properties by inclusive numeric bounds."""
     @api.response(HTTPStatus.OK.value, 'Success', [property_model])
-    @api.response(HTTPStatus.BAD_REQUEST.value, 'Invalid price range')
+    @api.response(HTTPStatus.BAD_REQUEST.value, 'Invalid property filter')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def get(self):
-        """Return properties matching the supplied price bounds."""
+        """Return properties matching the supplied numeric bounds."""
+        if not request.args:
+            raise wz.BadRequest('At least one property filter is required.')
+
+        candidate_ids = []
+        searchers = [
+            ('price', pqry.search_by_price, ['min_price', 'max_price']),
+            (
+                'bedrooms',
+                pqry.search_by_bedrooms,
+                ['min_bedrooms', 'max_bedrooms'],
+            ),
+            (
+                'bathrooms',
+                pqry.search_by_bathrooms,
+                ['min_bathrooms', 'max_bathrooms'],
+            ),
+        ]
+
         try:
-            min_price = (
-                float(request.args['min_price'])
-                if 'min_price' in request.args else None
-            )
-            max_price = (
-                float(request.args['max_price'])
-                if 'max_price' in request.args else None
-            )
-            properties = pqry.search_by_price(min_price, max_price)
+            for _, search_func, keys in searchers:
+                if any(key in request.args for key in keys):
+                    min_value = (
+                        float(request.args[keys[0]])
+                        if keys[0] in request.args else None
+                    )
+                    max_value = (
+                        float(request.args[keys[1]])
+                        if keys[1] in request.args else None
+                    )
+                    properties = search_func(min_value, max_value)
+                    if properties is None:
+                        raise wz.ServiceUnavailable('Database may be down.')
+                    candidate_ids.append(
+                        {record['id'] for record in properties}
+                    )
         except ValueError as err:
             raise wz.BadRequest(str(err))
-        if properties is None:
+
+        if not candidate_ids:
+            raise wz.BadRequest(
+                'At least one property filter is required.'
+            )
+
+        all_properties = pqry.read()
+        if all_properties is None:
             raise wz.ServiceUnavailable('Database may be down.')
+
+        matched_ids = set.intersection(*candidate_ids)
+        properties = [
+            record for record in all_properties if record['id'] in matched_ids
+        ]
         return {PROPERTIES_RESP: properties}
 
 

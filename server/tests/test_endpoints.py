@@ -486,6 +486,26 @@ def test_search_properties_by_price():
     assert {prop['id'] for prop in properties} == {'prop-001', 'prop-003'}
 
 
+def test_search_properties_by_bedrooms():
+    resp = TEST_CLIENT.get(
+        f"{ep.PROPERTIES_EP}/search?min_bedrooms=3&max_bedrooms=3"
+    )
+    assert resp.status_code == OK
+    properties = resp.get_json()[ep.PROPERTIES_RESP]
+    assert {prop['id'] for prop in properties} == {'prop-002', 'prop-004'}
+
+
+def test_search_properties_by_bathrooms():
+    resp = TEST_CLIENT.get(
+        f"{ep.PROPERTIES_EP}/search?min_bathrooms=2&max_bathrooms=2"
+    )
+    assert resp.status_code == OK
+    properties = resp.get_json()[ep.PROPERTIES_RESP]
+    assert {prop['id'] for prop in properties} == {
+        'prop-001', 'prop-002', 'prop-003', 'prop-004'
+    }
+
+
 @pytest.mark.parametrize(
     "query_string",
     [

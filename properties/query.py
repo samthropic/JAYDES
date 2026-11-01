@@ -99,30 +99,118 @@ def read(property_id: str = None):
     return property_record
 
 
-def search_by_price(min_price=None, max_price=None):
-    """Return properties within an inclusive price range from seDB."""
-    if min_price is None and max_price is None:
-        raise ValueError("At least one price bound is required.")
-    if min_price is not None and (
-            not _is_number(min_price) or min_price < 0):
-        raise ValueError("Minimum price must be a non-negative number.")
-    if max_price is not None and (
-            not _is_number(max_price) or max_price < 0):
-        raise ValueError("Maximum price must be a non-negative number.")
-    if (min_price is not None and max_price is not None
-            and min_price > max_price):
-        raise ValueError("Minimum price cannot exceed maximum price.")
+def _validate_numeric_range(
+    min_value, max_value, field_label, allow_float=True, allow_int=True
+):
+    """Validate inclusive numeric bounds for property search filters."""
+    if min_value is None and max_value is None:
+        raise ValueError(
+            f"At least one {field_label.lower()} bound is required."
+        )
+
+    def _validate_bound(value, bound_name):
+        if value is None:
+            return None
+        if isinstance(value, bool) or not _is_number(value):
+            raise ValueError(
+                f"{bound_name} {field_label} must be a valid number."
+            )
+
+        if isinstance(value, int):
+            numeric = value
+        elif isinstance(value, float):
+            if not math.isfinite(value):
+                raise ValueError(
+                    f"{bound_name} {field_label} must be a valid number."
+                )
+            if not allow_float and not value.is_integer():
+                raise ValueError(
+                    f"{bound_name} {field_label} must be a "
+                    "non-negative integer."
+                )
+            numeric = int(value) if not allow_float else value
+        else:
+            numeric = float(value)
+            if not allow_float and not float(numeric).is_integer():
+                raise ValueError(
+                    f"{bound_name} {field_label} must be a "
+                    "non-negative integer."
+                )
+            numeric = int(numeric) if not allow_float else numeric
+
+        if numeric < 0:
+            raise ValueError(
+                f"{bound_name} {field_label} must be non-negative."
+            )
+        return numeric
+
+    min_value = _validate_bound(min_value, "Minimum")
+    max_value = _validate_bound(max_value, "Maximum")
+    if (
+        min_value is not None
+        and max_value is not None
+        and min_value > max_value
+    ):
+        raise ValueError(
+            f"Minimum {field_label.lower()} cannot exceed "
+            f"maximum {field_label.lower()}."
+        )
+    return min_value, max_value
+
+
+def _search_by_numeric_field(
+    field_name,
+    min_value=None,
+    max_value=None,
+    allow_float=True,
+    allow_int=True,
+):
+    """Return properties matching an inclusive numeric field range."""
+    min_value, max_value = _validate_numeric_range(
+        min_value,
+        max_value,
+        field_name,
+        allow_float=allow_float,
+        allow_int=allow_int,
+    )
     if not is_db_up():
         print("Database is down.")
         return None
 
-    price_filter = {}
-    if min_price is not None:
-        price_filter["$gte"] = min_price
-    if max_price is not None:
-        price_filter["$lte"] = max_price
+    field_filter = {}
+    if min_value is not None:
+        field_filter["$gte"] = min_value
+    if max_value is not None:
+        field_filter["$lte"] = max_value
     _ensure_seeded()
-    return dbc.read(PROPERTIES_COLLECTION, filt={"price": price_filter})
+    return dbc.read(PROPERTIES_COLLECTION, filt={field_name: field_filter})
+
+
+def search_by_price(min_price=None, max_price=None):
+    """Return properties within an inclusive price range from seDB."""
+    return _search_by_numeric_field("price", min_price, max_price)
+
+
+def search_by_bedrooms(min_bedrooms=None, max_bedrooms=None):
+    """Return properties within an inclusive bedroom range from seDB."""
+    return _search_by_numeric_field(
+        "bedrooms",
+        min_bedrooms,
+        max_bedrooms,
+        allow_float=False,
+        allow_int=True,
+    )
+
+
+def search_by_bathrooms(min_bathrooms=None, max_bathrooms=None):
+    """Return properties within an inclusive bathroom range from seDB."""
+    return _search_by_numeric_field(
+        "bathrooms",
+        min_bathrooms,
+        max_bathrooms,
+        allow_float=True,
+        allow_int=True,
+    )
 
 
 def exists(property_id: str):
