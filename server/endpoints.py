@@ -565,8 +565,6 @@ class Properties(Resource):
     def post(self):
         """Create a property associated with an existing neighborhood."""
         data = api.payload
-        if not pqry.is_db_up():
-            raise wz.ServiceUnavailable('Database may be down.')
         if pqry.exists(data['id']):
             raise wz.Conflict(f"Property {data['id']} already exists.")
 
@@ -583,6 +581,8 @@ class Properties(Resource):
             )
         except ValueError as err:
             raise wz.BadRequest(str(err))
+        if property_record is None:
+            raise wz.ServiceUnavailable('Database may be down.')
         return {PROPERTY_RESP: property_record}, HTTPStatus.CREATED
 
 
@@ -686,11 +686,10 @@ class Property(Resource):
         """
         The get method will return a single property by id.
         """
-        if not pqry.is_db_up():
-            raise wz.ServiceUnavailable('Database may be down.')
-
         property_record = pqry.read(property_id)
         if property_record is None:
+            if not pqry.is_db_up():
+                raise wz.ServiceUnavailable('Database may be down.')
             raise wz.NotFound(f'Property {property_id} not found.')
         return property_record
 
@@ -701,8 +700,6 @@ class Property(Resource):
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def patch(self, property_id):
         """Update one or more fields on a property."""
-        if not pqry.is_db_up():
-            raise wz.ServiceUnavailable('Database may be down.')
         changes = api.payload or {}
         if not changes:
             raise wz.BadRequest('At least one property field is required.')
@@ -711,6 +708,8 @@ class Property(Resource):
         except ValueError as err:
             raise wz.BadRequest(str(err))
         if property_record is None:
+            if not pqry.is_db_up():
+                raise wz.ServiceUnavailable('Database may be down.')
             raise wz.NotFound(f'Property {property_id} not found.')
         return {PROPERTY_RESP: property_record}
 
@@ -719,8 +718,9 @@ class Property(Resource):
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def delete(self, property_id):
         """Delete one property by id."""
-        if not pqry.is_db_up():
+        deleted = pqry.delete(property_id)
+        if deleted is None:
             raise wz.ServiceUnavailable('Database may be down.')
-        if not pqry.delete(property_id):
+        if not deleted:
             raise wz.NotFound(f'Property {property_id} not found.')
         return '', HTTPStatus.NO_CONTENT

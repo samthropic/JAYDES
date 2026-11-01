@@ -281,13 +281,13 @@ def create(property_id: str, address: str, neighborhood_id: str,
            price: float, bedrooms: int, bathrooms: float,
            latitude: float, longitude: float):
     """Create a property record in seDB."""
+    if not is_db_up():
+        print("Database is down.")
+        return None
     check_valid_property(
         property_id, address, neighborhood_id, price, bedrooms, bathrooms,
         latitude, longitude,
     )
-    if not is_db_up():
-        print("Database is down.")
-        return None
 
     property_record = {
         ID: property_id,
