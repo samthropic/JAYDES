@@ -452,12 +452,11 @@ class Neighborhoods(Resource):
         The post method will create a new neighborhood.
         """
         data = api.payload
-        if not nqry.dbc.is_db_up():
-            raise wz.ServiceUnavailable('Database may be down.')
-
         neighborhood_id = data[nqry.ID]
-
-        if nqry.exists(neighborhood_id):
+        exists_status = nqry.exists(neighborhood_id)
+        if exists_status is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+        if exists_status:
             raise wz.Conflict(
                 f'Neighborhood {neighborhood_id} already exists.'
             )
@@ -489,11 +488,10 @@ class Neighborhood(Resource):
         """
         The get method will return a single neighborhood by id.
         """
-        if not nqry.dbc.is_db_up():
-            raise wz.ServiceUnavailable('Database may be down.')
-
         neighborhood = nqry.read(neighborhood_id)
         if neighborhood is None:
+            if not nqry.dbc.is_db_up():
+                raise wz.ServiceUnavailable('Database may be down.')
             raise wz.NotFound(f'Neighborhood {neighborhood_id} not found.')
         return neighborhood
 
@@ -504,9 +502,6 @@ class Neighborhood(Resource):
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def patch(self, neighborhood_id):
         """Update one or more fields on a neighborhood."""
-        if not nqry.dbc.is_db_up():
-            raise wz.ServiceUnavailable('Database may be down.')
-
         changes = api.payload or {}
         if not changes:
             raise wz.BadRequest('At least one neighborhood field is required.')
@@ -517,6 +512,8 @@ class Neighborhood(Resource):
             raise wz.BadRequest(str(err))
 
         if neighborhood is None:
+            if not nqry.dbc.is_db_up():
+                raise wz.ServiceUnavailable('Database may be down.')
             raise wz.NotFound(f'Neighborhood {neighborhood_id} not found.')
 
         return {'Neighborhood': neighborhood}
@@ -526,13 +523,15 @@ class Neighborhood(Resource):
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def delete(self, neighborhood_id):
         """Delete one neighborhood by id."""
-        if not nqry.dbc.is_db_up():
+        delete_status = nqry.delete(neighborhood_id)
+
+        if delete_status is None:
             return (
                 {"message": "Database is down."},
                 HTTPStatus.SERVICE_UNAVAILABLE,
             )
 
-        if not nqry.delete(neighborhood_id):
+        if not delete_status:
             return (
                 {"message": f"Neighborhood {neighborhood_id} not found."},
                 HTTPStatus.NOT_FOUND,
@@ -554,10 +553,9 @@ class NeighborhoodProperties(Resource):
         List properties in a neighborhood.
         Empty neighborhoods return an empty list,
         """
-        if not nqry.dbc.is_db_up():
-            raise wz.ServiceUnavailable('Database may be down.')
-
         neighborhood_exists = nqry.exists(neighborhood_id)
+        if neighborhood_exists is None:
+            raise wz.ServiceUnavailable('Database may be down.')
         if not neighborhood_exists:
             raise wz.NotFound(f'Neighborhood {neighborhood_id} not found.')
 
