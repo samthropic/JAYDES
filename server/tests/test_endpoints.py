@@ -463,6 +463,42 @@ def test_delete_neighborhood_not_found(mock_neighborhood_db):
     assert resp.status_code == NOT_FOUND
     assert len(mock_neighborhood_db) == db_length_before
 
+
+@patch('server.endpoints.pqry.read')
+def test_get_neighborhood_properties(mock_pqry_read, mock_neighborhood_db):
+    n_id = "73a1b2c3-d4e5-6f7a-8b9c-0123456789ab"
+    
+    mock_pqry_read.return_value = [
+        {'id': 'prop-1', 'neighborhood_id': n_id, 'address': '123 Main St'},
+        {'id': 'prop-2', 'neighborhood_id': 'different-id', 'address': '456 Elm St'}
+    ]
+    
+    resp = TEST_CLIENT.get(f'{ep.NEIGHBORHOODS_EP}/{n_id}/properties')
+        
+    assert resp.status_code == OK
+    properties = resp.get_json()[ep.PROPERTIES_RESP]
+    
+    assert len(properties) == 1
+    assert properties[0]['id'] == 'prop-1'
+    assert properties[0]['neighborhood_id'] == n_id
+
+
+def test_get_neighborhood_properties_missing_neighborhood(mock_neighborhood_db):
+    resp = TEST_CLIENT.get(f'{ep.NEIGHBORHOODS_EP}/missing-id/properties')
+    assert resp.status_code == NOT_FOUND
+
+
+@patch('server.endpoints.pqry.read')
+def test_get_neighborhood_properties_empty(mock_pqry_read, mock_neighborhood_db):
+    mock_pqry_read.return_value = []
+    
+    n_id = "73a1b2c3-d4e5-6f7a-8b9c-0123456789ab"
+    resp = TEST_CLIENT.get(f'{ep.NEIGHBORHOODS_EP}/{n_id}/properties')
+        
+    assert resp.status_code == OK
+    assert resp.get_json()[ep.PROPERTIES_RESP] == []
+
+
 def test_get_properties():
     resp = TEST_CLIENT.get(ep.PROPERTIES_EP)
     assert resp.status_code == OK
@@ -702,6 +738,12 @@ def test_patch_neighborhood_db_unavailable(mock_is_db_up, existing_neighborhood_
 @patch('neighborhoods.query.dbc.is_db_up', return_value=False, autospec=True)
 def test_delete_neighborhood_db_unavailable(mock_is_db_up, existing_neighborhood_id):
     resp = TEST_CLIENT.delete(f"{ep.NEIGHBORHOODS_EP}/{existing_neighborhood_id}")
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+@patch('neighborhoods.query.dbc.is_db_up', return_value=False, autospec=True)
+def test_get_neighborhood_properties_db_unavailable(mock_is_db_up, existing_neighborhood_id):
+    resp = TEST_CLIENT.get(f'{ep.NEIGHBORHOODS_EP}/{existing_neighborhood_id}/properties')
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 

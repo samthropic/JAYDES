@@ -541,6 +541,37 @@ class Neighborhood(Resource):
         return '', HTTPStatus.NO_CONTENT
 
 
+@api.route(f'{NEIGHBORHOODS_EP}/<neighborhood_id>/properties')
+class NeighborhoodProperties(Resource):
+    """
+    The get method will return all properties in a specific neighborhood.
+    """
+    @api.response(HTTPStatus.OK.value, 'Success', [property_model])
+    @api.response(HTTPStatus.NOT_FOUND.value, 'Neighborhood Not Found')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
+    def get(self, neighborhood_id):
+        """
+        List properties in a neighborhood.
+        Empty neighborhoods return an empty list,
+        """
+        if not nqry.dbc.is_db_up():
+            raise wz.ServiceUnavailable('Database may be down.')
+
+        neighborhood_exists = nqry.exists(neighborhood_id)
+        if not neighborhood_exists:
+            raise wz.NotFound(f'Neighborhood {neighborhood_id} not found.')
+
+        properties = pqry.read()
+        if properties is None:
+            raise wz.ServiceUnavailable('Database may be down.')
+
+        in_neighborhood = [
+            p for p in properties
+            if p.get('neighborhood_id') == neighborhood_id
+        ]
+        return {PROPERTIES_RESP: in_neighborhood}
+
+
 @api.route(PROPERTIES_EP)
 class Properties(Resource):
     """
