@@ -120,7 +120,7 @@ def test_delete():
                TEST_ST['population'],
                TEST_ST['capital'],
                TEST_ST['area_sq_miles'],
-               TEST_ST['name'])
+               TEST_ST['name'], TEST_ST['region_id'])
     assert qry.delete(TEST_ST['state_code']) is True
     assert qry.read_one(TEST_ST['state_code']) is None
 
@@ -149,7 +149,7 @@ def test_create_is_readable_from_db():
                TEST_ST['population'],
                TEST_ST['capital'],
                TEST_ST['area_sq_miles'],
-               TEST_ST['name'])
+               TEST_ST['name'], TEST_ST['region_id'])
     states = qry.read()
     ids = [state[qry.ID] for state in states]
     assert TEST_ST['state_code'] in ids

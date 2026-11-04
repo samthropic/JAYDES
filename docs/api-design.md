@@ -21,6 +21,9 @@ Example: Northeast (`NE`) -> New York (`NY`) -> Chelsea -> 123 W 20th St.
 - States and regions use their two-letter code as `id` (`NY`, `NE`).
 - Neighborhoods and properties use non-empty string ids.
 - A parent field stores the parent's `id`.
+- Creating a state requires a two-letter `region_id` referencing an existing
+  region. State updates may omit `region_id` to keep the current parent;
+  supplying null, an invalid code, or an unknown region returns HTTP 400.
 
 ## Endpoint patterns
 

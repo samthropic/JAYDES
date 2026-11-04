@@ -54,7 +54,8 @@ state_input_model = api.model('StateInput', {
     'capital': fields.String(required=True, example='Albany'),
     'population': fields.Integer(required=True),
     'area_sq_miles': fields.Float(required=True),
-    'region_id': fields.String(description='Id of an existing region',
+    'region_id': fields.String(required=True,
+                               description='Id of an existing region',
                                example='NE'),
 })
 
@@ -204,7 +205,7 @@ class States(Resource):
                 data['capital'],
                 data['area_sq_miles'],
                 data['name'],
-                data.get('region_id'),
+                data['region_id'],
             )
         except ValueError as err:
             raise wz.BadRequest(str(err))

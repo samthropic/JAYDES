@@ -20,7 +20,7 @@ TEST_STATE = {
     "capital": "Test Capital",
     "area_sq_miles": 50000,
     "name": 'Test State',
-    "region_id": None,
+    "region_id": "NE",
 }
 
 STATE_TEST_DATA = {
@@ -107,6 +107,18 @@ def exists(state_code: str):
     return any(state[ID] == state_code for state in states)
 
 
+def _check_region_id(region_id):
+    """Require a two-letter code referencing an existing region."""
+    if (not isinstance(region_id, str)
+            or len(region_id) != rqry.REGION_CODE_LEN
+            or not region_id.isascii() or not region_id.isalpha()):
+        raise ValueError(
+            f'Region ID must be a {rqry.REGION_CODE_LEN}-letter string.'
+        )
+    if not rqry.exists(region_id):
+        raise ValueError(f"Region ID '{region_id}' does not exist.")
+
+
 def check_valid_state(
     state_code: str,
     population: int,
@@ -121,16 +133,7 @@ def check_valid_state(
         raise ValueError(f"State code must be {STATE_CODE_LEN}-letter string.")
     if not isinstance(population, int) or population < 0:
         raise ValueError("Population must be a non-negative integer.")
-    if region_id is not None:
-        if (
-            not isinstance(region_id, str)
-            or len(region_id) != rqry.REGION_CODE_LEN
-        ):
-            raise ValueError(
-                f"Region ID must be a {rqry.REGION_CODE_LEN}-letter string."
-            )
-        if not rqry.exists(region_id):
-            raise ValueError(f"Region ID '{region_id}' does not exist.")
+    _check_region_id(region_id)
     return True
 
 
@@ -143,7 +146,7 @@ def create(
     region_id: str = None,
 ):
     """
-    Create a new state in seDB.
+    Create a new state in seDB. An existing region_id is required.
     """
     # check_valid_state raises ValueError if the state is invalid, so we don't
     # need to check the return value.
@@ -185,9 +188,8 @@ def update(state_code: str, changes: dict):
     population = changes.get('population', 0)
     if not isinstance(population, int) or population < 0:
         raise ValueError("Population must be a non-negative integer.")
-    region_id = changes.get('region_id')
-    if region_id is not None and not rqry.exists(region_id):
-        raise ValueError(f"Region ID '{region_id}' does not exist.")
+    if 'region_id' in changes:
+        _check_region_id(changes['region_id'])
     if not exists(state_code):
         return None
     if changes:

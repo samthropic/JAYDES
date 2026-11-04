@@ -17,7 +17,7 @@ Stored in the `states` collection. `STATE_TEST_DATA` in `states/query.py` is the
 | `capital` | yes | |
 | `population` | yes | Non-negative integer |
 | `area_sq_miles` | yes | Number |
-| `region_id` | no | Id of an existing region, such as `NE`. Sample states store one. A new state may omit it. |
+| `region_id` | yes | Two-letter id of an existing region, such as `NE`. Required on creation; updates may omit it to keep the current parent, but cannot clear it. |
 
 ### `regions`
 
@@ -62,7 +62,7 @@ Stored in the `properties` collection. `PROPERTY_TEST_DATA` in
 regions 1──* states 1──* neighborhoods 1──* properties
 ```
 
-- A state's `region_id` must match an existing region `id`, once that field is added.
+- A state's `region_id` must match an existing region `id`.
 - A neighborhood's `state_id` must match an existing state `id`.
 - A property's `neighborhood_id` must match an existing neighborhood `id`.
 

@@ -32,7 +32,7 @@ def test_state_update_is_stored():
 
 
 def test_state_delete_removes_document():
-    sqry.create('TS', 1000000, 'Test Capital', 50000, 'Test State')
+    sqry.create('TS', 1000000, 'Test Capital', 50000, 'Test State', 'NE')
     assert sqry.delete('TS') is True
     assert _stored(sqry.STATES_COLLECTION, 'TS') is None
 
