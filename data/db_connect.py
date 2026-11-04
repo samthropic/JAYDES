@@ -36,8 +36,8 @@ def connect_db():
                                  + 'to use Mongo in the cloud.')
             print('Connecting to Mongo in the cloud.')
             client = pm.MongoClient(
-                f'mongodb+srv://gcallah:{password}'
-                + '@koukoumongo1.yud9b.mongodb.net/'
+                f'mongodb+srv://sf4095:{password}'
+                + '@test.3jsm0.mongodb.net/'
                 + '?retryWrites=true&w=majority',
                 serverSelectionTimeoutMS=SERVER_SELECTION_TIMEOUT_MS,
             )

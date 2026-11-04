@@ -81,7 +81,7 @@ export PYTHONPATH="$(pwd)"
 
 MongoDB listens on `localhost:27017`. Leave `CLOUD_MONGO` unset, or set it to `0`. `common.mk` exports `CLOUD_MONGO=0` when tests run. `connect_db()` then uses a local client, and the database name is `seDB`.
 
-`CLOUD_MONGO=1` connects to Atlas and requires `MONGO_PASSWD`. The connection string in `data/db_connect.py` still uses the course Atlas account. Use local MongoDB until that URI is replaced.
+`CLOUD_MONGO=1` connects to the team's Atlas cluster (`sf4095@test.3jsm0.mongodb.net`) and requires `MONGO_PASSWD` for that database user. Leave `CLOUD_MONGO` unset for local development and tests.
 
 `is_db_up()` calls `connect_db()` and pings the server. A failed ping makes `states.query.read()` and `regions.query.read()` return `None`, and `GET /states` and `GET /regions` respond with HTTP 503.
 
@@ -99,7 +99,7 @@ make all_tests
 
 `make all_tests` lints and runs pytest for `server`, `states`, `neighborhoods`, `regions`, `data`, and `properties`. The `data` tests check that state and region create, update, and delete are stored in `seDB`, and that those writes clear the in-memory cache. `common.mk` sets `CLOUD_MONGO=0` for those runs. GitHub Actions runs the same `make all_tests` target on push and pull request to `main` (`.github/workflows/main.yml`). The PythonAnywhere deploy step in that workflow stays commented out.
 
-Each of those test runs uses `data/db_fixture.py`. Before a test, it clears the `states` and `regions` collections and inserts the sample rows. After the test, it clears those collections again. Local MongoDB must be running.
+Each of those test runs uses `data/db_fixture.py`. Before a test, it clears properties, neighborhoods, states, and regions, then inserts the sample state and region rows. After the test, it clears those collections again. Local MongoDB must be running.
 
 ## Seeding
 

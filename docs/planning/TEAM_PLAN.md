@@ -157,7 +157,7 @@ Regions do not have `state_id`. A region is not a city.
 ### Database
 - Application database name: `seDB` (`data/db_connect.py`).
 - Local connection: `CLOUD_MONGO` unset or `0`, MongoDB on `localhost:27017`. `common.mk` exports `CLOUD_MONGO=0` for tests.
-- Cloud connection: `CLOUD_MONGO=1` and `MONGO_PASSWD` set. The current URI still points at the course Atlas account and must be replaced before the team uses it.
+- Cloud connection: `CLOUD_MONGO=1` and `MONGO_PASSWD` set. The URI in `data/db_connect.py` uses the team Atlas cluster `test.3jsm0.mongodb.net`.
 - `data/common.sh` and `data/bkup/` refer to `gamesDB`. That is not this API's database.
 
 ---
