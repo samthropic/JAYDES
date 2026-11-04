@@ -92,13 +92,16 @@ def check_valid_region(region_code: str, name: str, population: int,
                        description: str):
     if exists(region_code):
         raise ValueError(f"Region code {region_code} already exists.")
-    if not isinstance(region_code, str) or len(region_code) != REGION_CODE_LEN:
+    if (not isinstance(region_code, str)
+            or len(region_code) != REGION_CODE_LEN
+            or not region_code.isascii() or not region_code.isalpha()):
         raise ValueError(
             f"Region code must be {REGION_CODE_LEN}-letter string."
         )
-    if not isinstance(name, str) or len(name) == 0:
+    if not isinstance(name, str) or not name.strip():
         raise ValueError("Region name must be a non-empty string.")
-    if not isinstance(population, int) or population < 0:
+    if (not isinstance(population, int) or isinstance(population, bool)
+            or population < 0):
         raise ValueError("Population must be a non-negative integer.")
     if description is not None and not isinstance(description, str):
         raise ValueError("Region description must be a string.")
@@ -143,12 +146,13 @@ def update(region_code: str, changes: dict):
 
     if 'population' in changes:
         pop = changes['population']
-        if not isinstance(pop, int) or pop < 0:
+        if (not isinstance(pop, int) or isinstance(pop, bool)
+                or pop < 0):
             raise ValueError("Population must be a non-negative integer.")
 
     if 'name' in changes and (
         not isinstance(changes['name'], str)
-        or len(changes['name']) == 0
+        or not changes['name'].strip()
     ):
         raise ValueError("Region name must be a non-empty string.")
 
