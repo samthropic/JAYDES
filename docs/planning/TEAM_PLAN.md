@@ -358,7 +358,7 @@ Additional requirements:
 | 4 — Properties | Add combined search filters | Test property search edge cases |
 | 5 — Infrastructure | Replace `deploy.sh` and the course Atlas URI with the team's cloud host | Run that deploy from `.github/workflows/main.yml` |
 
-`deploy.sh` currently targets the PythonAnywhere account `Fall2023`. The workflow's deploy step is commented out and expects `DEMO_PA_PWD`. Replace both. Do not revive `.travis.yml`.
+`deploy.sh` targets the team PythonAnywhere account (`samthropic`). The workflow deploy job runs after tests on push to `main` and expects the `PA_PWD` secret. Do not revive `.travis.yml`.
 
 All members should help verify that their endpoints work in the deployed environment.
 
