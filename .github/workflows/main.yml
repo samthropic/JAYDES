@@ -1,5 +1,5 @@
-# Test on push/PR to main, then deploy to PythonAnywhere after a successful
-# push to main.
+# Test on push/PR to main, then reload PythonAnywhere after a successful
+# push to main (HTTP API — no SSH).
 
 name: Demo CI/CD
 
@@ -46,10 +46,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Install sshpass
-        run: sudo apt-get update && sudo apt-get install -y sshpass
-
       - name: Deploy to PythonAnywhere
         run: ./deploy.sh
         env:
-          PA_PWD: ${{ secrets.PA_PWD }}
+          PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}

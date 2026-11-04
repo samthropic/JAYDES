@@ -97,7 +97,7 @@ export PYTHONPATH="$(pwd)"
 make all_tests
 ```
 
-`make all_tests` lints and runs pytest for `server`, `states`, `neighborhoods`, `regions`, `data`, and `properties`. The `data` tests check that state and region create, update, and delete are stored in `seDB`, and that those writes clear the in-memory cache. `common.mk` sets `CLOUD_MONGO=0` for those runs. GitHub Actions runs the same `make all_tests` target on push and pull request to `main` (`.github/workflows/main.yml`). After tests pass on a push to `main`, the workflow runs `./deploy.sh` using the `PA_PWD` repository secret.
+`make all_tests` lints and runs pytest for `server`, `states`, `neighborhoods`, `regions`, `data`, and `properties`. The `data` tests check that state and region create, update, and delete are stored in `seDB`, and that those writes clear the in-memory cache. `common.mk` sets `CLOUD_MONGO=0` for those runs. GitHub Actions runs the same `make all_tests` target on push and pull request to `main` (`.github/workflows/main.yml`). After tests pass on a push to `main`, the workflow runs `./deploy.sh`, which reloads the PythonAnywhere web app over the HTTP API using the `PA_API_TOKEN` repository secret (no SSH). Free PythonAnywhere accounts cannot SSH, so pull new code on the server with `cd ~/JAYDES && ./rebuild.sh` in a Bash console (or a scheduled task).
 
 Each of those test runs uses `data/db_fixture.py`. Before a test, it clears properties, neighborhoods, states, and regions, then inserts the sample state and region rows. After the test, it clears those collections again. Local MongoDB must be running.
 
