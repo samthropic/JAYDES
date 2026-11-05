@@ -790,3 +790,31 @@ def test_get_state_neighborhoods_includes_new_neighborhood(
 def test_get_state_neighborhoods_db_unavailable(mock_is_db_up):
     resp = TEST_CLIENT.get(f'{ep.STATES_EP}/AL/neighborhoods')
     assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+STATE_SWAGGER_RESPONSES = [
+    ('/states', 'get', '200', 'States', ep.STATES_RESP),
+    ('/states', 'post', '201', 'StateResponse', ep.STATE_RESP),
+    ('/states/{state_id}', 'get', '200', 'StateResponse', ep.STATE_RESP),
+    ('/states/{state_id}', 'patch', '200', 'StateResponse', ep.STATE_RESP),
+    ('/states/{state_id}/neighborhoods', 'get', '200', 'StateNeighborhoods',
+     ep.NEIGHBORHOODS_RESP),
+]
+
+
+@pytest.mark.parametrize('path, method, status, model, key',
+                         STATE_SWAGGER_RESPONSES)
+def test_state_swagger_response_is_wrapped(path, method, status, model, key):
+    swagger = TEST_CLIENT.get('/swagger.json').get_json()
+    response = swagger['paths'][path][method]['responses'][status]
+    assert response['schema']['$ref'] == f'#/definitions/{model}'
+    assert key in swagger['definitions'][model]['properties']
+
+
+def test_state_swagger_matches_real_responses():
+    swagger = TEST_CLIENT.get('/swagger.json').get_json()
+    definitions = swagger['definitions']
+    one = TEST_CLIENT.get(f'{ep.STATES_EP}/AL').get_json()
+    assert set(one) == set(definitions['StateResponse']['properties'])
+    many = TEST_CLIENT.get(ep.STATES_EP).get_json()
+    assert set(many) == set(definitions['States']['properties'])

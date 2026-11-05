@@ -90,6 +90,18 @@ neighborhood_model = api.model('Neighborhood', {
                               example='NY'),
 })
 
+states_model = api.model('States', {
+    STATES_RESP: fields.List(fields.Nested(state_model)),
+})
+
+state_response_model = api.model('StateResponse', {
+    STATE_RESP: fields.Nested(state_model),
+})
+
+state_neighborhoods_model = api.model('StateNeighborhoods', {
+    NEIGHBORHOODS_RESP: fields.List(fields.Nested(neighborhood_model)),
+})
+
 neighborhood_input_model = api.model('NeighborhoodInput', {
     nqry.ID: fields.String(required=True, description='Neighborhood UUID',
                            example='550e8400-e29b-41d4-a716-446655440000'),
@@ -172,7 +184,7 @@ class States(Resource):
     """
     The get method will return a list of all states in the database.
     """
-    @api.response(HTTPStatus.OK.value, 'Success', [state_model])
+    @api.response(HTTPStatus.OK.value, 'Success', states_model)
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def get(self):
         """
@@ -184,7 +196,7 @@ class States(Resource):
         return {STATES_RESP: states}
 
     @api.expect(state_input_model, validate=True)
-    @api.response(HTTPStatus.CREATED.value, 'Created', state_model)
+    @api.response(HTTPStatus.CREATED.value, 'Created', state_response_model)
     @api.response(HTTPStatus.BAD_REQUEST.value, 'Invalid state data')
     @api.response(HTTPStatus.CONFLICT.value, 'State already exists')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
@@ -218,7 +230,7 @@ class State(Resource):
     """
     The get method will return a single state by id.
     """
-    @api.response(HTTPStatus.OK.value, 'Success', state_model)
+    @api.response(HTTPStatus.OK.value, 'Success', state_response_model)
     @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def get(self, state_id):
@@ -234,7 +246,7 @@ class State(Resource):
         return {STATE_RESP: state}
 
     @api.expect(state_update_model, validate=True)
-    @api.response(HTTPStatus.OK.value, 'Updated', state_model)
+    @api.response(HTTPStatus.OK.value, 'Updated', state_response_model)
     @api.response(HTTPStatus.BAD_REQUEST.value, 'Invalid state data')
     @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
@@ -284,7 +296,7 @@ class StateNeighborhoods(Resource):
     """
     The get method will return all neighborhoods in a state.
     """
-    @api.response(HTTPStatus.OK.value, 'Success', [neighborhood_model])
+    @api.response(HTTPStatus.OK.value, 'Success', state_neighborhoods_model)
     @api.response(HTTPStatus.NOT_FOUND.value, 'State Not Found')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def get(self, state_id):
