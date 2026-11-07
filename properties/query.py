@@ -158,58 +158,65 @@ def _validate_numeric_range(
     return min_value, max_value
 
 
-def _search_by_numeric_field(
-    field_name,
-    min_value=None,
-    max_value=None,
-    allow_float=True,
-    allow_int=True,
+def search(
+    min_price=None,
+    max_price=None,
+    min_bedrooms=None,
+    max_bedrooms=None,
+    min_bathrooms=None,
+    max_bathrooms=None,
 ):
-    """Return properties matching an inclusive numeric field range."""
-    min_value, max_value = _validate_numeric_range(
-        min_value,
-        max_value,
-        field_name,
-        allow_float=allow_float,
-        allow_int=allow_int,
+    """Return properties matching all supplied numeric range filters."""
+    ranges = (
+        ("price", min_price, max_price, True),
+        ("bedrooms", min_bedrooms, max_bedrooms, False),
+        ("bathrooms", min_bathrooms, max_bathrooms, True),
     )
+    filters = {}
+    for field_name, minimum, maximum, allow_float in ranges:
+        if minimum is None and maximum is None:
+            continue
+        minimum, maximum = _validate_numeric_range(
+            minimum,
+            maximum,
+            field_name,
+            allow_float=allow_float,
+        )
+        field_filter = {}
+        if minimum is not None:
+            field_filter["$gte"] = minimum
+        if maximum is not None:
+            field_filter["$lte"] = maximum
+        filters[field_name] = field_filter
+
+    if not filters:
+        raise ValueError("At least one property filter is required.")
     if not is_db_up():
         print("Database is down.")
         return None
 
-    field_filter = {}
-    if min_value is not None:
-        field_filter["$gte"] = min_value
-    if max_value is not None:
-        field_filter["$lte"] = max_value
     _ensure_seeded()
-    return dbc.read(PROPERTIES_COLLECTION, filt={field_name: field_filter})
+    return dbc.read(PROPERTIES_COLLECTION, filt=filters)
 
 
 def search_by_price(min_price=None, max_price=None):
     """Return properties within an inclusive price range from seDB."""
-    return _search_by_numeric_field("price", min_price, max_price)
+    return search(min_price=min_price, max_price=max_price)
 
 
 def search_by_bedrooms(min_bedrooms=None, max_bedrooms=None):
     """Return properties within an inclusive bedroom range from seDB."""
-    return _search_by_numeric_field(
-        "bedrooms",
-        min_bedrooms,
-        max_bedrooms,
-        allow_float=False,
-        allow_int=True,
+    return search(
+        min_bedrooms=min_bedrooms,
+        max_bedrooms=max_bedrooms,
     )
 
 
 def search_by_bathrooms(min_bathrooms=None, max_bathrooms=None):
     """Return properties within an inclusive bathroom range from seDB."""
-    return _search_by_numeric_field(
-        "bathrooms",
-        min_bathrooms,
-        max_bathrooms,
-        allow_float=True,
-        allow_int=True,
+    return search(
+        min_bathrooms=min_bathrooms,
+        max_bathrooms=max_bathrooms,
     )
 
 

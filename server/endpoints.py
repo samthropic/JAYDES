@@ -665,54 +665,25 @@ class PropertySearch(Resource):
         if not request.args:
             raise wz.BadRequest('At least one property filter is required.')
 
-        candidate_ids = []
-        searchers = [
-            ('price', pqry.search_by_price, ['min_price', 'max_price']),
-            (
-                'bedrooms',
-                pqry.search_by_bedrooms,
-                ['min_bedrooms', 'max_bedrooms'],
-            ),
-            (
-                'bathrooms',
-                pqry.search_by_bathrooms,
-                ['min_bathrooms', 'max_bathrooms'],
-            ),
-        ]
-
         try:
-            for _, search_func, keys in searchers:
-                if any(key in request.args for key in keys):
-                    min_value = (
-                        float(request.args[keys[0]])
-                        if keys[0] in request.args else None
-                    )
-                    max_value = (
-                        float(request.args[keys[1]])
-                        if keys[1] in request.args else None
-                    )
-                    properties = search_func(min_value, max_value)
-                    if properties is None:
-                        raise wz.ServiceUnavailable('Database may be down.')
-                    candidate_ids.append(
-                        {record['id'] for record in properties}
-                    )
+            filters = {
+                key: float(request.args[key])
+                for key in (
+                    'min_price',
+                    'max_price',
+                    'min_bedrooms',
+                    'max_bedrooms',
+                    'min_bathrooms',
+                    'max_bathrooms',
+                )
+                if key in request.args
+            }
+            properties = pqry.search(**filters)
         except ValueError as err:
             raise wz.BadRequest(str(err))
 
-        if not candidate_ids:
-            raise wz.BadRequest(
-                'At least one property filter is required.'
-            )
-
-        all_properties = pqry.read()
-        if all_properties is None:
+        if properties is None:
             raise wz.ServiceUnavailable('Database may be down.')
-
-        matched_ids = set.intersection(*candidate_ids)
-        properties = [
-            record for record in all_properties if record['id'] in matched_ids
-        ]
         return {PROPERTIES_RESP: properties}
 
 

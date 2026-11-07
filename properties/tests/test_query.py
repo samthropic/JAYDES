@@ -168,6 +168,29 @@ def test_search_by_bathrooms(min_bathrooms, max_bathrooms, expected_ids):
     assert {prop["id"] for prop in properties} == expected_ids
 
 
+def test_search_combines_filters_in_one_database_read():
+    qry.read()
+    with patch("properties.query._ensure_seeded"), patch(
+        "properties.query.dbc.read", wraps=dbc.read
+    ) as read:
+        properties = qry.search(
+            min_price=1350000,
+            max_price=2000000,
+            min_bedrooms=3,
+            max_bathrooms=2,
+        )
+
+    assert {prop["id"] for prop in properties} == {"prop-004"}
+    read.assert_called_once_with(
+        qry.PROPERTIES_COLLECTION,
+        filt={
+            "price": {"$gte": 1350000, "$lte": 2000000},
+            "bedrooms": {"$gte": 3},
+            "bathrooms": {"$lte": 2},
+        },
+    )
+
+
 @pytest.mark.parametrize(
     ("min_price", "max_price"),
     [
