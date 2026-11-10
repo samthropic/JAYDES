@@ -11,34 +11,58 @@ import states.query as sqry
 
 def clear_properties():
     """Remove every document from the properties collection."""
-    dbc.connect_db()
     dbc.delete_many(pqry.PROPERTIES_COLLECTION)
 
 
 def clear_neighborhoods():
     """Remove every document from the neighborhoods collection."""
-    dbc.connect_db()
     dbc.delete_many(nqry.NEIGHBORHOODS_COLLECTION)
 
 
-def clear_states_and_regions():
-    """
-    Remove states and regions, plus child collections that reference them.
-
-    Neighborhoods and properties are cleared too so leftover rows from other
-    packages or earlier runs cannot block state or region deletes.
-    """
-    dbc.connect_db()
-    dbc.delete_many(pqry.PROPERTIES_COLLECTION)
-    dbc.delete_many(nqry.NEIGHBORHOODS_COLLECTION)
+def clear_states():
+    """Remove every document from the states collection."""
     dbc.delete_many(sqry.STATES_COLLECTION)
-    dbc.delete_many(rqry.REGIONS_COLLECTION)
     cache.invalidate(sqry.STATES_CACHE)
+
+
+def clear_regions():
+    """Remove every document from the regions collection."""
+    dbc.delete_many(rqry.REGIONS_COLLECTION)
     cache.invalidate(rqry.REGIONS_CACHE)
 
 
-def seed_states_and_regions():
-    """Clear related collections, then insert sample states and regions."""
-    clear_states_and_regions()
-    sqry._ensure_seeded()
+def seed_regions():
     rqry._ensure_seeded()
+
+
+def seed_states():
+    sqry._ensure_seeded()
+
+
+def seed_neighborhoods():
+    nqry._ensure_seeded()
+
+
+def seed_properties():
+    pqry._ensure_seeded()
+
+
+def clear_all():
+    """Clear children before parents."""
+    clear_properties()
+    clear_neighborhoods()
+    clear_states()
+    clear_regions()
+
+
+def seed_all():
+    """Seed parents before children."""
+    seed_regions()
+    seed_states()
+    seed_neighborhoods()
+    seed_properties()
+
+
+def reset_all():
+    clear_all()
+    seed_all()
