@@ -6,26 +6,10 @@ import states.query as state_qry
 
 EXISTING_ID = "73a1b2c3-d4e5-6f7a-8b9c-0123456789ab"
 
-TEST_NH = {
-    "id": "11111111-2222-3333-4444-555555555555",
-    "name": "Test Neighborhood",
-    "state_id": "AL"
-}
-
-
-@pytest.fixture
-def temp_nh():
-    """Inserts a valid neighborhood into the real test DB.
-    Clean up is handled automatically by the seeded_db fixture in conftest.py.
-    """
-    qry.create(TEST_NH['id'], TEST_NH['name'], TEST_NH['state_id'])
-    return TEST_NH.copy()
-
-
-def test_check_valid_neighborhood():
-    ret = qry.check_valid_neighborhood(TEST_NH['id'],
-                                       TEST_NH['name'],
-                                       TEST_NH['state_id'])
+def test_check_valid_neighborhood(base_nh):
+    ret = qry.check_valid_neighborhood(base_nh['id'],
+                                       base_nh['name'],
+                                       base_nh['state_id'])
     assert ret
 
 
@@ -45,8 +29,8 @@ def test_check_valid_neighborhood_already_exists(temp_nh):
     ]
 )
 
-def test_check_valid_neighborhood_invalid_fields(field, value):
-    test_data = TEST_NH.copy()
+def test_check_valid_neighborhood_invalid_fields(field, value, base_nh):
+    test_data = base_nh.copy()
     test_data[field] = value
     
     with pytest.raises(ValueError):
@@ -55,10 +39,10 @@ def test_check_valid_neighborhood_invalid_fields(field, value):
                                      test_data['state_id'])
 
 
-def test_check_valid_neighborhood_state_not_found():
+def test_check_valid_neighborhood_state_not_found(base_nh):
     with pytest.raises(ValueError, match="does not exist in the database"):
-        qry.check_valid_neighborhood(TEST_NH['id'],
-                                     TEST_NH['name'],
+        qry.check_valid_neighborhood(base_nh['id'],
+                                     base_nh['name'],
                                      "ZZ")
 
 
