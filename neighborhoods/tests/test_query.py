@@ -7,7 +7,7 @@ import states.query as state_qry
 EXISTING_ID = "73a1b2c3-d4e5-6f7a-8b9c-0123456789ab"
 
 TEST_NH = {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "id": "11111111-2222-3333-4444-555555555555",
     "name": "Test Neighborhood",
     "state_id": "AL"
 }
