@@ -63,6 +63,15 @@ def test_post_duplicate_region_preserves_original(client, new_region, seeded_db)
     assert seeded_db == before
 
 
+def test_post_same_region_twice_does_not_create_duplicate(
+        client, new_region, seeded_db):
+    assert client.post('/regions', json=new_region).status_code == 201
+    response = client.post('/regions', json=new_region)
+    assert response.status_code == 409
+    assert 'already exists' in response.get_json()['message']
+    assert sum(record['id'] == 'TR' for record in seeded_db) == 1
+
+
 @pytest.mark.parametrize('field', ['id', 'name', 'population', 'description'])
 def test_post_missing_required_field(client, new_region, field, seeded_db):
     del new_region[field]
@@ -74,6 +83,8 @@ def test_post_missing_required_field(client, new_region, field, seeded_db):
 @pytest.mark.parametrize('changes', [
     {'id': '12'}, {'name': ' '}, {'population': -1},
     {'population': True}, {'description': 123},
+    {'id': None}, {'name': None}, {'name': 123},
+    {'population': None}, {'population': '100'}, {'population': 1.5},
 ])
 def test_post_invalid_region(client, new_region, changes, seeded_db):
     response = client.post('/regions', json={**new_region, **changes})
@@ -110,6 +121,8 @@ def test_patch_region_persists_and_preserves_other_fields(
 @pytest.mark.parametrize('changes', [
     {}, {'name': ' '}, {'population': -1}, {'population': False},
     {'description': 123}, {'id': 'XX'}, {'unknown': 'value'},
+    {'name': None}, {'name': 123}, {'population': None},
+    {'population': '100'}, {'population': 1.5},
 ])
 def test_patch_invalid_region_does_not_change_storage(
         client, changes, seeded_db):
@@ -128,6 +141,7 @@ def test_patch_missing_region(client, seeded_db):
 
 @pytest.mark.parametrize('method,path', [
     ('post', '/regions'), ('get', '/regions/NE'), ('patch', '/regions/NE'),
+    ('get', '/regions'), ('delete', '/regions/NE'),
 ])
 def test_region_database_unavailable(client, new_region, method, path, seeded_db):
     before = deepcopy(seeded_db)
@@ -136,7 +150,20 @@ def test_region_database_unavailable(client, new_region, method, path, seeded_db
             response = client.get(path)
         elif method == 'post':
             response = client.post(path, json=new_region)
+        elif method == 'delete':
+            response = client.delete(path)
         else:
             response = client.patch(path, json={'name': 'Updated'})
     assert response.status_code == 503
+    assert seeded_db == before
+
+
+@pytest.mark.parametrize('method,path', [
+    ('post', '/regions'), ('patch', '/regions/NE'),
+])
+def test_region_malformed_json_preserves_storage(client, method, path, seeded_db):
+    before = deepcopy(seeded_db)
+    response = client.open(path, method=method.upper(), data='{"name":',
+                           content_type='application/json')
+    assert response.status_code == 400
     assert seeded_db == before
