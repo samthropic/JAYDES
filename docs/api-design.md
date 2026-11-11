@@ -39,6 +39,7 @@ Example: Northeast (`NE`) -> New York (`NY`) -> Chelsea -> 123 W 20th St.
 |--------|-----------------------------------------------|---------------------------------------|
 | GET    | `/hello`                                      | Check that the server is running      |
 | GET    | `/health`                                     | API and MongoDB health check          |
+| GET    | `/stats`                                      | Counts of each geographic collection  |
 | GET    | `/endpoints`                                  | List all available endpoints          |
 | GET    | `/regions`                                    | List all regions                      |
 | POST   | `/regions`                                    | Create a region                       |

@@ -15,8 +15,10 @@ from unittest.mock import patch
 import pytest
 
 from server import endpoints as ep
-import states.query as sqry
 import neighborhoods.query as nqry
+import properties.query as pqry
+import regions.query as rqry
+import states.query as sqry
 
 TEST_CLIENT = ep.app.test_client()
 
@@ -44,6 +46,28 @@ def test_health_in_swagger():
 @patch('data.db_connect.is_db_up', return_value=False, autospec=True)
 def test_health_db_unavailable(mock_is_db_up):
     resp = TEST_CLIENT.get(ep.HEALTH_EP)
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
+def test_stats():
+    resp = TEST_CLIENT.get(ep.STATS_EP)
+    assert resp.status_code == OK
+    stats = resp.get_json()[ep.STATS_RESP]
+    assert stats['states'] == len(sqry.STATE_TEST_DATA)
+    assert stats['regions'] == len(rqry.REGION_TEST_DATA)
+    assert stats['neighborhoods'] == len(nqry.NEIGHBORHOOD_TEST_DATA)
+    assert stats['properties'] == len(pqry.PROPERTY_TEST_DATA)
+
+
+def test_stats_in_swagger():
+    resp = TEST_CLIENT.get('/swagger.json')
+    assert resp.status_code == OK
+    assert 'Stats' in resp.get_json()['definitions']
+
+
+@patch('data.db_connect.is_db_up', return_value=False, autospec=True)
+def test_stats_db_unavailable(mock_is_db_up):
+    resp = TEST_CLIENT.get(ep.STATS_EP)
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 

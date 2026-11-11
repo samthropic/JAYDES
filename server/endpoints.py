@@ -24,6 +24,8 @@ HELLO_RESP = 'hello'
 HEALTH_EP = '/health'
 HEALTH_STATUS = 'status'
 HEALTH_DATABASE = 'database'
+STATS_EP = '/stats'
+STATS_RESP = 'Stats:'
 STATES_EP = '/states'
 STATES_RESP = 'States:'
 STATE_RESP = 'State:'
@@ -161,6 +163,17 @@ health_model = api.model('Health', {
                                    example='up'),
 })
 
+stats_counts_model = api.model('StatsCounts', {
+    'states': fields.Integer(description='Number of states'),
+    'regions': fields.Integer(description='Number of regions'),
+    'neighborhoods': fields.Integer(description='Number of neighborhoods'),
+    'properties': fields.Integer(description='Number of properties'),
+})
+
+stats_model = api.model('Stats', {
+    STATS_RESP: fields.Nested(stats_counts_model),
+})
+
 
 @api.route(HELLO_EP)
 class HelloWorld(Resource):
@@ -189,6 +202,37 @@ class Health(Resource):
         if not dbc.is_db_up():
             raise wz.ServiceUnavailable('Database may be down.')
         return {HEALTH_STATUS: 'ok', HEALTH_DATABASE: 'up'}
+
+
+@api.route(STATS_EP)
+class Stats(Resource):
+    """
+    Geographic collection counts from seDB.
+    """
+    @api.response(HTTPStatus.OK.value, 'Success', stats_model)
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Database is down')
+    def get(self):
+        """
+        Return how many states, regions, neighborhoods, and properties are
+        stored. HTTP 503 when MongoDB is unavailable.
+        """
+        if not dbc.is_db_up():
+            raise wz.ServiceUnavailable('Database may be down.')
+        states = sqry.read()
+        regions = rqry.read()
+        neighborhoods = nqry.read()
+        properties = pqry.read()
+        if (states is None or regions is None
+                or neighborhoods is None or properties is None):
+            raise wz.ServiceUnavailable('Database may be down.')
+        return {
+            STATS_RESP: {
+                'states': len(states),
+                'regions': len(regions),
+                'neighborhoods': len(neighborhoods),
+                'properties': len(properties),
+            }
+        }
 
 
 @api.route(ENDPOINT_EP)
