@@ -38,6 +38,7 @@ Example: Northeast (`NE`) -> New York (`NY`) -> Chelsea -> 123 W 20th St.
 | Method | Path                                          | Description                           |
 |--------|-----------------------------------------------|---------------------------------------|
 | GET    | `/hello`                                      | Check that the server is running      |
+| GET    | `/health`                                     | API and MongoDB health check          |
 | GET    | `/endpoints`                                  | List all available endpoints          |
 | GET    | `/regions`                                    | List all regions                      |
 | POST   | `/regions`                                    | Create a region                       |

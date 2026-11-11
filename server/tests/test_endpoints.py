@@ -27,6 +27,26 @@ def test_hello():
     assert ep.HELLO_RESP in resp_json
 
 
+def test_health():
+    resp = TEST_CLIENT.get(ep.HEALTH_EP)
+    assert resp.status_code == OK
+    resp_json = resp.get_json()
+    assert resp_json[ep.HEALTH_STATUS] == 'ok'
+    assert resp_json[ep.HEALTH_DATABASE] == 'up'
+
+
+def test_health_in_swagger():
+    resp = TEST_CLIENT.get('/swagger.json')
+    assert resp.status_code == OK
+    assert 'Health' in resp.get_json()['definitions']
+
+
+@patch('data.db_connect.is_db_up', return_value=False, autospec=True)
+def test_health_db_unavailable(mock_is_db_up):
+    resp = TEST_CLIENT.get(ep.HEALTH_EP)
+    assert resp.status_code == SERVICE_UNAVAILABLE
+
+
 def test_get_states():
     resp = TEST_CLIENT.get(ep.STATES_EP)
     assert resp.status_code == OK
