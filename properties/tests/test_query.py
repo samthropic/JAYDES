@@ -3,29 +3,7 @@ from unittest.mock import patch
 import pytest
 
 import data.db_connect as dbc
-from data.db_fixture import clear_properties as clear_property_collection
 import properties.query as qry
-
-
-@pytest.fixture
-def test_property():
-    return {
-        "property_id": "prop-test",
-        "address": "1 Test Street, Test City, NY",
-        "neighborhood_id": "test-neighborhood",
-        "price": 250000,
-        "bedrooms": 3,
-        "bathrooms": 2,
-        "latitude": 40.7128,
-        "longitude": -74.0060,
-    }
-
-
-@pytest.fixture(autouse=True)
-def isolated_properties_collection():
-    clear_property_collection()
-    yield
-    clear_property_collection()
 
 
 def test_check_valid_property(test_property):
