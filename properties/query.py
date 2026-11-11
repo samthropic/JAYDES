@@ -100,7 +100,7 @@ def read(property_id: str = None):
 
 
 def _validate_numeric_range(
-    min_value, max_value, field_label, allow_float=True, allow_int=True
+    min_value, max_value, field_label, allow_float=True
 ):
     """Validate inclusive numeric bounds for property search filters."""
     if min_value is None and max_value is None:
@@ -111,32 +111,20 @@ def _validate_numeric_range(
     def _validate_bound(value, bound_name):
         if value is None:
             return None
-        if isinstance(value, bool) or not _is_number(value):
+        if not _is_number(value):
             raise ValueError(
                 f"{bound_name} {field_label} must be a valid number."
             )
 
-        if isinstance(value, int):
+        if _is_integer(value):
             numeric = value
-        elif isinstance(value, float):
-            if not math.isfinite(value):
-                raise ValueError(
-                    f"{bound_name} {field_label} must be a valid number."
-                )
+        else:
             if not allow_float and not value.is_integer():
                 raise ValueError(
                     f"{bound_name} {field_label} must be a "
                     "non-negative integer."
                 )
             numeric = int(value) if not allow_float else value
-        else:
-            numeric = float(value)
-            if not allow_float and not float(numeric).is_integer():
-                raise ValueError(
-                    f"{bound_name} {field_label} must be a "
-                    "non-negative integer."
-                )
-            numeric = int(numeric) if not allow_float else numeric
 
         if numeric < 0:
             raise ValueError(
@@ -241,6 +229,10 @@ def _is_number(value):
             and (not isinstance(value, float) or math.isfinite(value)))
 
 
+def _is_integer(value):
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
 def _check_neighborhood_exists(neighborhood_id: str):
     if not nqry.exists(neighborhood_id):
         raise ValueError(f"Neighborhood id {neighborhood_id} does not exist.")
@@ -272,8 +264,7 @@ def _check_property_fields(address: str, neighborhood_id: str, price: float,
         raise ValueError("Neighborhood id must be a non-empty string.")
     if not _is_number(price) or price < 0:
         raise ValueError("Price must be a non-negative number.")
-    if (not isinstance(bedrooms, int) or isinstance(bedrooms, bool)
-            or bedrooms < 0):
+    if not _is_integer(bedrooms) or bedrooms < 0:
         raise ValueError("Bedrooms must be a non-negative integer.")
     if not _is_number(bathrooms) or bathrooms < 0:
         raise ValueError("Bathrooms must be a non-negative number.")
