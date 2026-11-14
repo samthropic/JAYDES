@@ -2,12 +2,14 @@
 
 import math
 
+import data.cache as cache
 import data.db_connect as dbc
 from data.db_connect import is_db_up
 import neighborhoods.query as nqry
 
 ID = "id"
 PROPERTIES_COLLECTION = "properties"
+PROPERTIES_CACHE = "properties"
 UPDATABLE_FIELDS = (
     "address", "neighborhood_id", "price", "bedrooms", "bathrooms",
     "latitude", "longitude",
@@ -90,13 +92,16 @@ def read(property_id: str = None):
     if not is_db_up():
         print("Database is down.")
         return None
-    _ensure_seeded()
+    cached = cache.get(PROPERTIES_CACHE)
+    if cached is None:
+        _ensure_seeded()
+        cache.put(PROPERTIES_CACHE, dbc.read(PROPERTIES_COLLECTION))
+        cached = cache.get(PROPERTIES_CACHE)
     if property_id is None:
-        return dbc.read(PROPERTIES_COLLECTION)
-    property_record = dbc.read_one(PROPERTIES_COLLECTION, {ID: property_id})
-    if property_record is not None:
-        property_record.pop(dbc.MONGO_ID, None)
-    return property_record
+        return cached
+    return next(
+        (record for record in cached if record[ID] == property_id), None
+    )
 
 
 def _validate_numeric_range(
@@ -212,11 +217,10 @@ def exists(property_id: str):
     """
     Check if a property exists in seDB.
     """
-    if not is_db_up():
-        print("Database is down.")
+    properties = read()
+    if properties is None:
         return None
-    _ensure_seeded()
-    return dbc.read_one(PROPERTIES_COLLECTION, {ID: property_id}) is not None
+    return any(record[ID] == property_id for record in properties)
 
 
 def _is_non_empty_string(value):
@@ -298,6 +302,7 @@ def create(property_id: str, address: str, neighborhood_id: str,
         "longitude": longitude,
     }
     dbc.create(PROPERTIES_COLLECTION, property_record)
+    cache.invalidate(PROPERTIES_CACHE)
     return read(property_id)
 
 
@@ -325,6 +330,7 @@ def update(property_id: str, changes: dict):
         _check_neighborhood_exists(updated["neighborhood_id"])
     if changes:
         dbc.update(PROPERTIES_COLLECTION, {ID: property_id}, changes)
+        cache.invalidate(PROPERTIES_CACHE)
     return read(property_id)
 
 
@@ -336,4 +342,7 @@ def delete(property_id: str):
         print("Database is down.")
         return None
     _ensure_seeded()
-    return dbc.delete(PROPERTIES_COLLECTION, {ID: property_id}) > 0
+    deleted = dbc.delete(PROPERTIES_COLLECTION, {ID: property_id}) > 0
+    if deleted:
+        cache.invalidate(PROPERTIES_CACHE)
+    return deleted

@@ -66,8 +66,23 @@ def test_update_missing_property_returns_none():
 
 
 def test_delete_property():
+    qry.read()
     assert qry.delete("prop-001") is True
+    assert "prop-001" not in {prop["id"] for prop in qry.read()}
     assert qry.delete("prop-001") is False
+
+
+def test_read_and_exists_use_cached_properties():
+    qry.read()
+    with patch("properties.query.dbc.read") as read, patch(
+        "properties.query.dbc.read_one"
+    ) as read_one:
+        assert qry.read() is not None
+        assert qry.read("prop-001")["id"] == "prop-001"
+        assert qry.exists("prop-001")
+
+    read.assert_not_called()
+    read_one.assert_not_called()
 
 
 @patch("properties.query.is_db_up", return_value=False)

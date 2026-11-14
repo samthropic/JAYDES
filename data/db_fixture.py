@@ -12,6 +12,7 @@ import states.query as sqry
 def clear_properties():
     """Remove every document from the properties collection."""
     dbc.delete_many(pqry.PROPERTIES_COLLECTION)
+    cache.invalidate(pqry.PROPERTIES_CACHE)
 
 
 def clear_neighborhoods():
