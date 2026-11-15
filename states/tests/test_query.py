@@ -1,4 +1,5 @@
 import sys
+from unittest.mock import patch
 
 import pytest
 
@@ -153,3 +154,29 @@ def test_create_is_readable_from_db():
     states = qry.read()
     ids = [state[qry.ID] for state in states]
     assert TEST_ST['state_code'] in ids
+
+
+DB_DOWN_CALLS = [
+    ('read', ()),
+    ('read_one', ('AL',)),
+    ('exists', ('AL',)),
+    ('update', ('AL', {'capital': 'Birmingham'})),
+    ('delete', ('AL',)),
+]
+
+
+@pytest.mark.parametrize('func_name, args', DB_DOWN_CALLS)
+def test_db_down_returns_none(func_name, args):
+    with patch('states.query.is_db_up', return_value=False, autospec=True):
+        assert getattr(qry, func_name)(*args) is None
+
+
+def test_create_db_down_returns_none():
+    with patch('states.query.is_db_up', return_value=False, autospec=True):
+        assert qry.create(TEST_ST['state_code'],
+                          TEST_ST['population'],
+                          TEST_ST['capital'],
+                          TEST_ST['area_sq_miles'],
+                          TEST_ST['name'],
+                          TEST_ST['region_id']) is None
+    assert qry.read_one(TEST_ST['state_code']) is None
