@@ -180,3 +180,32 @@ def test_create_db_down_returns_none():
                           TEST_ST['name'],
                           TEST_ST['region_id']) is None
     assert qry.read_one(TEST_ST['state_code']) is None
+
+
+def test_check_valid_state_already_exists():
+    with pytest.raises(ValueError, match='already exists'):
+        qry.check_valid_state('AL',
+                              TEST_ST['population'],
+                              TEST_ST['capital'],
+                              TEST_ST['area_sq_miles'],
+                              TEST_ST['name'],
+                              TEST_ST['region_id'])
+
+
+def test_update_with_no_changes_leaves_state_unchanged():
+    before = qry.read_one('AL')
+    with patch.object(qry.dbc, 'update', autospec=True) as mock_update:
+        assert qry.update('AL', {}) == before
+    mock_update.assert_not_called()
+
+
+def test_read_is_served_from_cache_after_first_call():
+    first = qry.read()
+    with patch.object(qry.dbc, 'read',
+                      side_effect=AssertionError('read hit the database')):
+        assert qry.read() == first
+
+
+def test_read_returns_a_copy_of_the_cache():
+    qry.read()[0]['name'] = 'Changed'
+    assert qry.read()[0]['name'] != 'Changed'
