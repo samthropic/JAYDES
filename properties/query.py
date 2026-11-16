@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 
-import math
-
 import data.cache as cache
 import data.db_connect as dbc
 from data.db_connect import is_db_up
+from common.validation import is_finite_number, is_integer
 import neighborhoods.query as nqry
 
 ID = "id"
@@ -116,12 +115,12 @@ def _validate_numeric_range(
     def _validate_bound(value, bound_name):
         if value is None:
             return None
-        if not _is_number(value):
+        if not is_finite_number(value):
             raise ValueError(
                 f"{bound_name} {field_label} must be a valid number."
             )
 
-        if _is_integer(value):
+        if is_integer(value):
             numeric = value
         else:
             if not allow_float and not value.is_integer():
@@ -227,16 +226,6 @@ def _is_non_empty_string(value):
     return isinstance(value, str) and bool(value.strip())
 
 
-def _is_number(value):
-    return (isinstance(value, (int, float))
-            and not isinstance(value, bool)
-            and (not isinstance(value, float) or math.isfinite(value)))
-
-
-def _is_integer(value):
-    return isinstance(value, int) and not isinstance(value, bool)
-
-
 def _check_neighborhood_exists(neighborhood_id: str):
     if not nqry.exists(neighborhood_id):
         raise ValueError(f"Neighborhood id {neighborhood_id} does not exist.")
@@ -266,15 +255,15 @@ def _check_property_fields(address: str, neighborhood_id: str, price: float,
         raise ValueError("Property address must be a non-empty string.")
     if not _is_non_empty_string(neighborhood_id):
         raise ValueError("Neighborhood id must be a non-empty string.")
-    if not _is_number(price) or price < 0:
+    if not is_finite_number(price) or price < 0:
         raise ValueError("Price must be a non-negative number.")
-    if not _is_integer(bedrooms) or bedrooms < 0:
+    if not is_integer(bedrooms) or bedrooms < 0:
         raise ValueError("Bedrooms must be a non-negative integer.")
-    if not _is_number(bathrooms) or bathrooms < 0:
+    if not is_finite_number(bathrooms) or bathrooms < 0:
         raise ValueError("Bathrooms must be a non-negative number.")
-    if not _is_number(latitude) or not -90 <= latitude <= 90:
+    if not is_finite_number(latitude) or not -90 <= latitude <= 90:
         raise ValueError("Latitude must be between -90 and 90.")
-    if not _is_number(longitude) or not -180 <= longitude <= 180:
+    if not is_finite_number(longitude) or not -180 <= longitude <= 180:
         raise ValueError("Longitude must be between -180 and 180.")
     return True
 

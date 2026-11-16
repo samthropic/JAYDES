@@ -3,6 +3,7 @@
 import data.cache as cache
 import data.db_connect as dbc
 from data.db_connect import is_db_up
+from common.validation import is_integer
 
 
 REGION_CODE_LEN = 2
@@ -100,8 +101,7 @@ def check_valid_region(region_code: str, name: str, population: int,
         )
     if not isinstance(name, str) or not name.strip():
         raise ValueError("Region name must be a non-empty string.")
-    if (not isinstance(population, int) or isinstance(population, bool)
-            or population < 0):
+    if not is_integer(population) or population < 0:
         raise ValueError("Population must be a non-negative integer.")
     if description is not None and not isinstance(description, str):
         raise ValueError("Region description must be a string.")
@@ -146,8 +146,7 @@ def update(region_code: str, changes: dict):
 
     if 'population' in changes:
         pop = changes['population']
-        if (not isinstance(pop, int) or isinstance(pop, bool)
-                or pop < 0):
+        if not is_integer(pop) or pop < 0:
             raise ValueError("Population must be a non-negative integer.")
 
     if 'name' in changes and (

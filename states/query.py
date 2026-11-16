@@ -3,6 +3,7 @@
 import data.cache as cache
 import data.db_connect as dbc
 from data.db_connect import is_db_up
+from common.validation import is_integer
 import regions.query as rqry
 
 
@@ -131,7 +132,7 @@ def check_valid_state(
         raise ValueError(f"State code {state_code} already exists.")
     if not isinstance(state_code, str) or len(state_code) != STATE_CODE_LEN:
         raise ValueError(f"State code must be {STATE_CODE_LEN}-letter string.")
-    if not isinstance(population, int) or population < 0:
+    if not is_integer(population) or population < 0:
         raise ValueError("Population must be a non-negative integer.")
     _check_region_id(region_id)
     return True
@@ -186,7 +187,7 @@ def update(state_code: str, changes: dict):
     if unknown:
         raise ValueError(f"Cannot update fields: {sorted(unknown)}.")
     population = changes.get('population', 0)
-    if not isinstance(population, int) or population < 0:
+    if not is_integer(population) or population < 0:
         raise ValueError("Population must be a non-negative integer.")
     if 'region_id' in changes:
         _check_region_id(changes['region_id'])

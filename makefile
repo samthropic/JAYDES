@@ -2,6 +2,7 @@ include common.mk
 
 # Our directories
 API_DIR = server
+COMMON_DIR = common
 DB_DIR = data
 STATES_DIR = states
 NEIGHBORHOODS_DIR = neighborhoods
@@ -20,6 +21,7 @@ github: FORCE
 
 all_tests: FORCE
 	cd $(API_DIR); make tests
+	cd $(COMMON_DIR); make tests
 	cd $(STATES_DIR); make tests
 	cd $(NEIGHBORHOODS_DIR); make tests
 	cd $(REGIONS_DIR); make tests

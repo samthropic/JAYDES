@@ -27,6 +27,17 @@ def test_check_valid_state_bad_pop():
                               TEST_ST['region_id'])
 
 
+@pytest.mark.parametrize('population', [True, False])
+def test_check_valid_state_rejects_boolean_population(population):
+    with pytest.raises(ValueError, match='non-negative integer'):
+        qry.check_valid_state(TEST_ST['state_code'],
+                              population,
+                              TEST_ST['capital'],
+                              TEST_ST['area_sq_miles'],
+                              TEST_ST['name'],
+                              TEST_ST['region_id'])
+
+
 def test_check_valid_state_bad_region_id():
     with pytest.raises(ValueError):
         qry.check_valid_state(TEST_ST['state_code'],
@@ -96,9 +107,10 @@ def test_update_unknown_field():
         qry.update('AL', {'flag': 'red'})
 
 
-def test_update_bad_population():
+@pytest.mark.parametrize('population', [-1, True, False])
+def test_update_bad_population(population):
     with pytest.raises(ValueError):
-        qry.update('AL', {'population': -1})
+        qry.update('AL', {'population': population})
 
 
 def test_update_unknown_region():
@@ -134,6 +146,7 @@ def test_delete_state_with_neighborhoods(neighborhood_in_al):
 def test_delete_not_found():
     assert qry.delete('ZZ') is False
 
+
 def test_query():
     states = qry.read()
     assert isinstance(states, list)
@@ -143,6 +156,7 @@ def test_query():
         assert 'region_id' in state
         assert isinstance(state['region_id'], str)
         assert len(state['region_id']) == qry.STATE_CODE_LEN
+
 
 def test_create_is_readable_from_db():
     qry.create(TEST_ST['state_code'],
