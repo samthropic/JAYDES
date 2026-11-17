@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 
+import os
+
 import data.cache as cache
 import data.db_connect as dbc
 from data.db_connect import is_db_up
-from common.validation import is_integer
+from common.validation import is_finite_number, is_integer
 import regions.query as rqry
+from states.load import load_state_coordinates
 
 
 STATE_CODE_LEN = 2
@@ -12,8 +15,9 @@ ID = 'id'
 STATES_COLLECTION = 'states'
 STATES_CACHE = 'states'
 NEIGHBORHOODS_COLLECTION = 'neighborhoods'
+STATES_CSV = os.path.join(os.path.dirname(__file__), 'raw_data', 'states.csv')
 UPDATABLE_FIELDS = ('name', 'capital', 'population', 'area_sq_miles',
-                    'region_id')
+                    'region_id', 'latitude', 'longitude')
 
 TEST_STATE = {
     "state_code": "TS",
@@ -22,6 +26,8 @@ TEST_STATE = {
     "area_sq_miles": 50000,
     "name": 'Test State',
     "region_id": "NE",
+    "latitude": 40.0,
+    "longitude": -74.0,
 }
 
 STATE_TEST_DATA = {
@@ -48,6 +54,19 @@ STATE_TEST_DATA = {
     },
     # Add more states as needed
 }
+
+
+def _apply_csv_coordinates(states):
+    """Attach latitude/longitude from states.csv onto matching seed rows."""
+    coords = load_state_coordinates(STATES_CSV)
+    for code, data in states.items():
+        if code in coords:
+            data['latitude'] = coords[code]['latitude']
+            data['longitude'] = coords[code]['longitude']
+    return states
+
+
+_apply_csv_coordinates(STATE_TEST_DATA)
 
 
 class StateHasNeighborhoodsError(Exception):
@@ -120,6 +139,14 @@ def _check_region_id(region_id):
         raise ValueError(f"Region ID '{region_id}' does not exist.")
 
 
+def _check_coordinates(latitude, longitude):
+    """Require latitude/longitude in the valid geographic ranges."""
+    if not is_finite_number(latitude) or not -90 <= latitude <= 90:
+        raise ValueError("Latitude must be between -90 and 90.")
+    if not is_finite_number(longitude) or not -180 <= longitude <= 180:
+        raise ValueError("Longitude must be between -180 and 180.")
+
+
 def check_valid_state(
     state_code: str,
     population: int,
@@ -127,6 +154,8 @@ def check_valid_state(
     area_sq_miles: float,
     name: str,
     region_id: str = None,
+    latitude=None,
+    longitude=None,
 ):
     if exists(state_code):
         raise ValueError(f"State code {state_code} already exists.")
@@ -135,6 +164,12 @@ def check_valid_state(
     if not is_integer(population) or population < 0:
         raise ValueError("Population must be a non-negative integer.")
     _check_region_id(region_id)
+    if latitude is not None or longitude is not None:
+        if latitude is None or longitude is None:
+            raise ValueError(
+                "Latitude and longitude must both be provided together."
+            )
+        _check_coordinates(latitude, longitude)
     return True
 
 
@@ -145,9 +180,12 @@ def create(
     area_sq_miles: float,
     name: str,
     region_id: str = None,
+    latitude=None,
+    longitude=None,
 ):
     """
     Create a new state in seDB. An existing region_id is required.
+    Latitude and longitude are optional and come from states.csv for seeds.
     """
     # check_valid_state raises ValueError if the state is invalid, so we don't
     # need to check the return value.
@@ -158,6 +196,8 @@ def create(
         area_sq_miles,
         name,
         region_id,
+        latitude,
+        longitude,
     )
     if not is_db_up():
         print("Database is down.")
@@ -169,6 +209,9 @@ def create(
         "name": name,
         "region_id": region_id,
     }
+    if latitude is not None and longitude is not None:
+        doc['latitude'] = latitude
+        doc['longitude'] = longitude
     dbc.create(STATES_COLLECTION, {ID: state_code, **doc})
     cache.invalidate(STATES_CACHE)
     return doc
@@ -186,11 +229,23 @@ def update(state_code: str, changes: dict):
     unknown = set(changes) - set(UPDATABLE_FIELDS)
     if unknown:
         raise ValueError(f"Cannot update fields: {sorted(unknown)}.")
-    population = changes.get('population', 0)
-    if not is_integer(population) or population < 0:
-        raise ValueError("Population must be a non-negative integer.")
+    if 'population' in changes:
+        population = changes['population']
+        if not is_integer(population) or population < 0:
+            raise ValueError("Population must be a non-negative integer.")
     if 'region_id' in changes:
         _check_region_id(changes['region_id'])
+    if 'latitude' in changes or 'longitude' in changes:
+        current = read_one(state_code)
+        if current is None:
+            return None
+        latitude = changes.get('latitude', current.get('latitude'))
+        longitude = changes.get('longitude', current.get('longitude'))
+        if latitude is None or longitude is None:
+            raise ValueError(
+                "Latitude and longitude must both be set on a state."
+            )
+        _check_coordinates(latitude, longitude)
     if not exists(state_code):
         return None
     if changes:
@@ -230,6 +285,8 @@ def main():
         print(f"Capital: {data['capital']}")
         print(f"Area (sq miles): {data['area_sq_miles']}")
         print(f"Region ID: {data.get('region_id')}")
+        print(f"Latitude: {data.get('latitude')}")
+        print(f"Longitude: {data.get('longitude')}")
         print("-" * 40)
 
 

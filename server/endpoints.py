@@ -47,6 +47,8 @@ state_model = api.model('State', {
     'area_sq_miles': fields.Float(description='Area in square miles'),
     'region_id': fields.String(description='Id of the parent region',
                                example='NE'),
+    'latitude': fields.Float(description='Latitude from states.csv'),
+    'longitude': fields.Float(description='Longitude from states.csv'),
 })
 
 region_states_model = api.model('RegionStates', {
@@ -63,6 +65,8 @@ state_input_model = api.model('StateInput', {
     'region_id': fields.String(required=True,
                                description='Id of an existing region',
                                example='NE'),
+    'latitude': fields.Float(description='Optional latitude'),
+    'longitude': fields.Float(description='Optional longitude'),
 })
 
 region_model = api.model('Region', {
@@ -132,6 +136,8 @@ state_update_model = api.model('StateUpdate', {
     'area_sq_miles': fields.Float(),
     'region_id': fields.String(description='Id of an existing region',
                                example='NE'),
+    'latitude': fields.Float(description='Latitude'),
+    'longitude': fields.Float(description='Longitude'),
 })
 
 property_model = api.model('Property', {
@@ -288,6 +294,8 @@ class States(Resource):
                 data['area_sq_miles'],
                 data['name'],
                 data['region_id'],
+                data.get('latitude'),
+                data.get('longitude'),
             )
         except ValueError as err:
             raise wz.BadRequest(str(err))

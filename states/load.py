@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# This is a python script to load raw_data/states.csv
+# Load raw_data/states.csv into Python structures.
 
 
 import csv
@@ -19,6 +19,22 @@ def load_states(file_path):
         for row in reader:
             states.append(row)
     return states
+
+
+def load_state_coordinates(file_path):
+    """
+    Return a map of state abbreviation to latitude and longitude floats.
+
+    CSV columns: Abbrev, Latitude, Longitude, State.
+    """
+    coords = {}
+    for row in load_states(file_path):
+        abbrev = row['Abbrev']
+        coords[abbrev] = {
+            'latitude': float(row['Latitude']),
+            'longitude': float(row['Longitude']),
+        }
+    return coords
 
 
 def main():

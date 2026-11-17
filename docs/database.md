@@ -18,6 +18,8 @@ Stored in the `states` collection. `STATE_TEST_DATA` in `states/query.py` is the
 | `population` | yes | Non-negative integer |
 | `area_sq_miles` | yes | Number |
 | `region_id` | yes | Two-letter id of an existing region, such as `NE`. Required on creation; updates may omit it to keep the current parent, but cannot clear it. |
+| `latitude` | no | From `states/raw_data/states.csv` for seeded states. Optional on create/update; both coordinates must be set together. |
+| `longitude` | no | From `states/raw_data/states.csv` for seeded states. Optional on create/update; both coordinates must be set together. |
 
 ### `regions`
 
@@ -107,9 +109,9 @@ Each of those test runs uses `data/db_fixture.py`. Before a test, it clears prop
 
 | Collection | Source | What to load |
 |------------|--------|----------------|
-| `states` | `STATE_TEST_DATA` in `states/query.py` | `AL`, `AK`, `AZ`, including `name`, `capital`, `population`, and `area_sq_miles`. The dictionary key becomes `id`. |
+| `states` | `STATE_TEST_DATA` in `states/query.py` | `AL`, `AK`, `AZ`, including `name`, `capital`, `population`, `area_sq_miles`, and coordinates from `states.csv`. The dictionary key becomes `id`. |
 | `regions` | `REGION_TEST_DATA` in `regions/query.py` | `NE`, `SE`, `MW`, including `name`, `population`, and `description`. The dictionary key becomes `id`. |
-| `states` (optional fuller list) | `states/raw_data/states.csv` | Columns `Abbrev`, `Latitude`, `Longitude`, `State`. `states/load.py` only prints these rows. It does not insert them. Coordinates are not fields on the state record yet. |
+| `states` (coordinates) | `states/raw_data/states.csv` | Columns `Abbrev`, `Latitude`, `Longitude`, `State`. `states.load.load_state_coordinates()` supplies lat/long for matching seed rows. |
 | `neighborhoods` | `neighborhoods/query.py`, when it exists | At least five neighborhoods whose `state_id` is `AL`, `AK`, or `AZ`. |
 | `properties` | `PROPERTY_TEST_DATA` in `properties/query.py` | At least five properties; the dictionary key becomes `id`. The referenced neighborhood ids must exist in the neighborhoods collection. |
 

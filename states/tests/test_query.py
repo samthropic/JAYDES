@@ -84,6 +84,8 @@ def test_read_one():
     state = qry.read_one('AL')
     assert state['id'] == 'AL'
     assert state['name'] == 'Alabama'
+    assert state['latitude'] == 32.318231
+    assert state['longitude'] == -86.902298
     assert qry.dbc.MONGO_ID not in state
 
 
@@ -116,6 +118,23 @@ def test_update_bad_population(population):
 def test_update_unknown_region():
     with pytest.raises(ValueError):
         qry.update('AL', {'region_id': 'ZZ'})
+
+
+def test_update_coordinates():
+    state = qry.update('AL', {'latitude': 33.5, 'longitude': -86.8})
+    assert state['latitude'] == 33.5
+    assert state['longitude'] == -86.8
+    assert qry.read_one('AL')['latitude'] == 33.5
+
+
+def test_update_bad_latitude():
+    with pytest.raises(ValueError, match='Latitude'):
+        qry.update('AL', {'latitude': 100})
+
+
+def test_seed_data_has_csv_coordinates():
+    assert qry.STATE_TEST_DATA['AL']['latitude'] == 32.318231
+    assert qry.STATE_TEST_DATA['AK']['longitude'] == -154.493062
 
 
 @pytest.fixture
@@ -156,6 +175,10 @@ def test_query():
         assert 'region_id' in state
         assert isinstance(state['region_id'], str)
         assert len(state['region_id']) == qry.STATE_CODE_LEN
+        assert 'latitude' in state
+        assert 'longitude' in state
+        assert -90 <= state['latitude'] <= 90
+        assert -180 <= state['longitude'] <= 180
 
 
 def test_create_is_readable_from_db():

@@ -374,7 +374,7 @@ All members should help verify that their endpoints work in the deployed environ
 - [ ] Review caching behavior
 - [ ] Test deployed API endpoints
 - [ ] Fix integration bugs
-- [ ] Decide whether `states/raw_data/states.csv` coordinates belong on the state record
+- [x] Decide whether `states/raw_data/states.csv` coordinates belong on the state record (yes: seeded onto state docs)
 
 ### Optional Features
 - [ ] Geographic proximity search
