@@ -1,6 +1,9 @@
 import data.cache as cache
+import neighborhoods.query as nqry
 import regions.query as rqry
 import states.query as sqry
+
+NEW_NEIGHBORHOOD_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
 
 
 def _by_id(records, code):
@@ -57,3 +60,28 @@ def test_region_delete_clears_cached_list():
     rqry.read()
     assert rqry.delete('NE') is True
     assert _by_id(rqry.read(), 'NE') is None
+
+
+def test_neighborhood_create_clears_cached_list():
+    nqry.read()
+    nqry.create(NEW_NEIGHBORHOOD_ID, 'Cache Test', 'AL')
+    neighborhoods = nqry.read()
+    assert _by_id(neighborhoods, NEW_NEIGHBORHOOD_ID)['name'] == 'Cache Test'
+
+
+def test_neighborhood_update_replaces_stale_cache():
+    existing_id = next(iter(nqry.NEIGHBORHOOD_TEST_DATA))
+    nqry.read()
+    stale = cache.get(nqry.NEIGHBORHOODS_CACHE)
+    _by_id(stale, existing_id)['name'] = 'Stale Name'
+    cache.put(nqry.NEIGHBORHOODS_CACHE, stale)
+    nqry.update(existing_id, {'name': 'Fresh Name'})
+    updated = _by_id(nqry.read(), existing_id)
+    assert updated['name'] == 'Fresh Name'
+
+
+def test_neighborhood_delete_clears_cached_list():
+    nqry.create(NEW_NEIGHBORHOOD_ID, 'Cache Test', 'AL')
+    assert _by_id(nqry.read(), NEW_NEIGHBORHOOD_ID) is not None
+    assert nqry.delete(NEW_NEIGHBORHOOD_ID) is True
+    assert _by_id(nqry.read(), NEW_NEIGHBORHOOD_ID) is None

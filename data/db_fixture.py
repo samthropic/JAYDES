@@ -18,6 +18,7 @@ def clear_properties():
 def clear_neighborhoods():
     """Remove every document from the neighborhoods collection."""
     dbc.delete_many(nqry.NEIGHBORHOODS_COLLECTION)
+    cache.invalidate(nqry.NEIGHBORHOODS_CACHE)
 
 
 def clear_states():

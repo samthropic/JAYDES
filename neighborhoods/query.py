@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import data.cache as cache
 import data.db_connect as dbc
 
 import states.query as state_qry
@@ -7,6 +8,7 @@ import states.query as state_qry
 UUID_STRING_LEN = 36
 ID = 'id'
 NEIGHBORHOODS_COLLECTION = 'neighborhoods'
+NEIGHBORHOODS_CACHE = 'neighborhoods'
 UPDATABLE_FIELDS = ('name', 'state_id')
 
 TEST_NEIGHBORHOOD = {
@@ -58,37 +60,35 @@ def _ensure_seeded():
 
 def read(neighborhood_id: str = None):
     """
-    Return either a list of all neighborhoods or a single neighborhood by id.
+    Return all neighborhoods or one by id from seDB.
+    List reads use an in-memory copy until a write clears it.
     """
     if not dbc.is_db_up():
         print("Database is down.")
         return None
 
-    _ensure_seeded()
+    cached = cache.get(NEIGHBORHOODS_CACHE)
+    if cached is None:
+        _ensure_seeded()
+        cache.put(NEIGHBORHOODS_CACHE, dbc.read(NEIGHBORHOODS_COLLECTION))
+        cached = cache.get(NEIGHBORHOODS_CACHE)
 
     if neighborhood_id is None:
-        return dbc.read(NEIGHBORHOODS_COLLECTION)
-
-    neighborhood = dbc.read_one(
-        NEIGHBORHOODS_COLLECTION, {ID: neighborhood_id}
+        return cached
+    return next(
+        (record for record in cached if record[ID] == neighborhood_id),
+        None,
     )
-    if neighborhood is not None:
-        neighborhood.pop(dbc.MONGO_ID, None)
-    return neighborhood
 
 
 def exists(neighborhood_id: str):
     """
     Check if a neighborhood exists in the database.
     """
-    if not dbc.is_db_up():
-        print("Database is down.")
+    neighborhoods = read()
+    if neighborhoods is None:
         return None
-
-    _ensure_seeded()
-    return dbc.read_one(
-        NEIGHBORHOODS_COLLECTION, {ID: neighborhood_id}
-    ) is not None
+    return any(record[ID] == neighborhood_id for record in neighborhoods)
 
 
 def check_valid_neighborhood(neighborhood_id: str, name: str, state_id: str):
@@ -130,6 +130,7 @@ def create(neighborhood_id: str, name: str, state_id: str):
         "state_id": state_id,
     }
     dbc.create(NEIGHBORHOODS_COLLECTION, {ID: neighborhood_id, **doc})
+    cache.invalidate(NEIGHBORHOODS_CACHE)
     return {ID: neighborhood_id, **doc}
 
 
@@ -167,6 +168,7 @@ def update(neighborhood_id: str, changes: dict):
 
     if changes:
         dbc.update(NEIGHBORHOODS_COLLECTION, {ID: neighborhood_id}, changes)
+        cache.invalidate(NEIGHBORHOODS_CACHE)
 
     return read(neighborhood_id)
 
@@ -180,7 +182,10 @@ def delete(neighborhood_id: str):
         return None
 
     _ensure_seeded()
-    return dbc.delete(NEIGHBORHOODS_COLLECTION, {ID: neighborhood_id}) > 0
+    deleted = dbc.delete(NEIGHBORHOODS_COLLECTION, {ID: neighborhood_id}) > 0
+    if deleted:
+        cache.invalidate(NEIGHBORHOODS_CACHE)
+    return deleted
 
 
 def main():
