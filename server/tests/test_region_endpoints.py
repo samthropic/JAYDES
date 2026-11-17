@@ -102,6 +102,35 @@ def test_get_missing_region(client):
     assert client.get('/regions/ZZ').status_code == 404
 
 
+@pytest.mark.parametrize('method,path,swagger_path,status,payload,key', [
+    ('GET', '/regions', '/regions', 200, None, 'Regions:'),
+    ('GET', '/regions/NE', '/regions/{region_id}', 200, None, 'Region:'),
+    ('POST', '/regions', '/regions', 201,
+     {'id': 'TR', 'name': 'Test Region', 'population': 0,
+      'description': 'New region'}, 'Region:'),
+    ('PATCH', '/regions/NE', '/regions/{region_id}', 200,
+     {'population': 1}, 'Region:'),
+])
+def test_region_swagger_matches_response(
+        client, method, path, swagger_path, status, payload, key):
+    swagger = client.get('/swagger.json').get_json()
+    operation = swagger['paths'][swagger_path][method.lower()]
+    ref = operation['responses'][str(status)]['schema']['$ref']
+    model = swagger['definitions'][ref.rsplit('/', 1)[-1]]
+    response = client.open(path, method=method, json=payload)
+    assert response.status_code == status
+    body = response.get_json()
+    assert set(body) == set(model['properties']) == {key}
+    property_schema = model['properties'][key]
+    if key == 'Regions:':
+        assert isinstance(body[key], list)
+        assert property_schema['type'] == 'array'
+        property_schema = property_schema['items']
+    else:
+        assert isinstance(body[key], dict)
+    assert property_schema['$ref'] == '#/definitions/Region'
+
+
 @pytest.mark.parametrize('changes', [
     {'name': 'New Northeast'}, {'population': 0},
     {'description': 'Updated description'},

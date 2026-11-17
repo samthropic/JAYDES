@@ -77,6 +77,14 @@ region_model = api.model('Region', {
                                  example='Northeastern United States'),
 })
 
+regions_model = api.model('Regions', {
+    REGIONS_RESP: fields.List(fields.Nested(region_model), required=True),
+})
+
+region_response_model = api.model('RegionResponse', {
+    REGION_RESP: fields.Nested(region_model, required=True),
+})
+
 region_input_model = api.model('RegionInput', {
     rqry.ID: fields.String(required=True, example='NE',
                            description='Two-letter region code'),
@@ -399,7 +407,7 @@ class Regions(Resource):
     """
     The get method will return a list of all regions in the database.
     """
-    @api.response(HTTPStatus.OK.value, 'Success', [region_model])
+    @api.response(HTTPStatus.OK.value, 'Success', regions_model)
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def get(self):
         """
@@ -411,7 +419,7 @@ class Regions(Resource):
         return {REGIONS_RESP: regions}
 
     @api.expect(region_input_model, validate=True)
-    @api.response(HTTPStatus.CREATED.value, 'Created', region_model)
+    @api.response(HTTPStatus.CREATED.value, 'Created', region_response_model)
     @api.response(HTTPStatus.BAD_REQUEST.value, 'Invalid region data')
     @api.response(HTTPStatus.CONFLICT.value, 'Region already exists')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
@@ -440,7 +448,7 @@ class Regions(Resource):
 @api.route(f'{REGIONS_EP}/<region_id>')
 class Region(Resource):
     """Get, update, or delete a single region."""
-    @api.response(HTTPStatus.OK.value, 'Success', region_model)
+    @api.response(HTTPStatus.OK.value, 'Success', region_response_model)
     @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def get(self, region_id):
@@ -454,7 +462,7 @@ class Region(Resource):
         return {REGION_RESP: region}
 
     @api.expect(region_update_model, validate=True)
-    @api.response(HTTPStatus.OK.value, 'Updated', region_model)
+    @api.response(HTTPStatus.OK.value, 'Updated', region_response_model)
     @api.response(HTTPStatus.BAD_REQUEST.value, 'Invalid region data')
     @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
