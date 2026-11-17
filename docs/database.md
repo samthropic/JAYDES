@@ -27,8 +27,8 @@ Stored in the `regions` collection. `REGION_TEST_DATA` in `regions/query.py` is 
 
 | Field | Required | Notes |
 |-------|----------|--------|
-| `id` | yes | 2-letter code, such as `NE`. Stored on the document. `GET /regions` still returns a dictionary keyed by that code, and omits `id` inside each record. |
-| `name` | yes | |
+| `id` | yes | Two ASCII letters, such as `NE`. Stored on the document and included in each API record. |
+| `name` | yes | String containing at least one non-whitespace character |
 | `population` | yes | Non-negative integer |
 | `description` | yes | |
 
@@ -64,7 +64,10 @@ Stored in the `properties` collection. `PROPERTY_TEST_DATA` in
 regions 1──* states 1──* neighborhoods 1──* properties
 ```
 
-- A state's `region_id` must match an existing region `id`.
+- A state's `region_id` must match an existing region `id`. The API uses
+  this field to list a region's states at `GET /regions/{region_id}/states`.
+- Region deletion is blocked while any state references its `id`. The API
+  returns HTTP 409 until those states are reassigned or deleted.
 - A neighborhood's `state_id` must match an existing state `id`.
 - A property's `neighborhood_id` must match an existing neighborhood `id`.
 

@@ -30,7 +30,8 @@ Example: Northeast (`NE`) -> New York (`NY`) -> Chelsea -> 123 W 20th St.
 - Plural, lowercase collection names: `/states`, `/regions`,
   `/neighborhoods`, `/properties`.
 - One item: `/<collection>/<id>`.
-- Nested lists: `/states/<id>/neighborhoods`.
+- Nested lists include `/regions/{region_id}/states` and
+  `/states/{state_id}/neighborhoods`.
 - `GET` reads, `POST` creates, `PATCH` updates, `DELETE` removes.
 
 ## Current endpoints
@@ -72,9 +73,10 @@ Swagger docs are served by flask-restx at `/swagger.json`.
 
 `GET /regions/{region_id}/states` returns only states whose `region_id`
 matches the requested region, wrapped as `{"States:": [...]}`. Each state
-includes its `region_id`. An existing region with no states returns HTTP 200
-with `{"States:": []}`. A missing region returns 404; an unavailable region
-or state lookup returns 503.
+includes its `region_id`. For example, `GET /regions/SE/states` returns the
+Alabama record shown below when using the sample data. An existing region
+with no states returns HTTP 200 with `{"States:": []}`. A missing region
+returns 404, and database unavailability during either lookup returns 503.
 
 `DELETE /regions/{region_id}` returns 409 while any state references the
 region. Reassign or delete those states before deleting their region.
@@ -108,9 +110,11 @@ List endpoints wrap the collection in a labeled object:
 }
 ```
 
-A single state is wrapped under `"State:"`, and regions use the same pattern
-under `"Regions:"` and `"Region:"`. A successful `DELETE` returns 204 with no
-body. Errors return a JSON object with a `message` field.
+A single state is wrapped under `"State:"`. `GET /regions` returns an array
+under `"Regions:"`, and each record includes its `id`. `POST /regions`,
+`GET /regions/{region_id}`, and `PATCH /regions/{region_id}` each return one
+record under `"Region:"`. A successful `DELETE` returns 204 with no body.
+Errors return a JSON object with a `message` field.
 
 ## Status codes
 
