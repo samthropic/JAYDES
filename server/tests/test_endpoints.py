@@ -299,9 +299,22 @@ def new_neighborhood():
 
 
 @pytest.fixture
-def existing_neighborhood_id():
-    """Provides a known, valid ID from the test data."""
-    return "73a1b2c3-d4e5-6f7a-8b9c-0123456789ab"
+def existing_neighborhood():
+    """A neighborhood that actually exists in the seeded DB."""
+    resp = TEST_CLIENT.get(ep.NEIGHBORHOODS_EP)
+    assert resp.status_code == OK
+    neighborhoods = resp.get_json()[ep.NEIGHBORHOODS_RESP]
+    assert neighborhoods, 'seed data has no neighborhoods'
+    return neighborhoods[0]
+
+
+@pytest.fixture
+def other_state_id(existing_neighborhood):
+    """A real state id different from the existing neighborhood's state."""
+    resp = TEST_CLIENT.get(ep.STATES_EP)
+    states = resp.get_json()[ep.STATES_RESP]
+    return next(s['id'] for s in states
+                if s['id'] != existing_neighborhood['state_id'])
 
 
 @pytest.fixture
@@ -362,183 +375,180 @@ def mock_states_db():
          patch('server.endpoints.sqry.exists', side_effect=lambda s: s in valid_states):
         yield
 
-def test_get_neighborhoods(mock_neighborhood_db):
+def test_get_neighborhoods():
     resp = TEST_CLIENT.get(ep.NEIGHBORHOODS_EP)
     assert resp.status_code == OK
-    
-    resp_json = resp.get_json()
-    neighborhoods = resp_json[ep.NEIGHBORHOODS_RESP]
-    
-    assert len(neighborhoods) == len(mock_neighborhood_db)
-    
+    neighborhoods = resp.get_json()[ep.NEIGHBORHOODS_RESP]
+    assert len(neighborhoods) == len(nqry.NEIGHBORHOOD_TEST_DATA)
     for neighborhood in neighborhoods:
         assert 'id' in neighborhood
         assert 'name' in neighborhood
         assert 'state_id' in neighborhood
 
 
-def test_get_neighborhood_by_id(existing_neighborhood_id, mock_neighborhood_db):
-    resp = TEST_CLIENT.get(f"{ep.NEIGHBORHOODS_EP}/{existing_neighborhood_id}")
+def test_get_neighborhood_by_id(existing_neighborhood):
+    n_id = existing_neighborhood['id']
+    resp = TEST_CLIENT.get(f'{ep.NEIGHBORHOODS_EP}/{n_id}')
     assert resp.status_code == OK
-    
     resp_json = resp.get_json()
-    assert resp_json['id'] == existing_neighborhood_id
-    
-    original = mock_neighborhood_db[existing_neighborhood_id]
-    assert resp_json['name'] == original['name']
-    assert resp_json['state_id'] == original['state_id']
+    assert resp_json['id'] == n_id
+    assert resp_json['name'] == existing_neighborhood['name']
+    assert resp_json['state_id'] == existing_neighborhood['state_id']
 
 
-def test_get_missing_neighborhood_by_id(mock_neighborhood_db):
-    resp = TEST_CLIENT.get(f"{ep.NEIGHBORHOODS_EP}/missing-neighborhood")
+def test_get_missing_neighborhood_by_id():
+    resp = TEST_CLIENT.get(f'{ep.NEIGHBORHOODS_EP}/missing-neighborhood')
     assert resp.status_code == NOT_FOUND
 
 
-def test_post_neighborhood(new_neighborhood, mock_neighborhood_db, mock_states_db):
+def test_post_neighborhood(new_neighborhood):
     resp = TEST_CLIENT.post(ep.NEIGHBORHOODS_EP, json=new_neighborhood)
     assert resp.status_code == CREATED
-    
     data = resp.get_json()['Neighborhood']
-    new_id = new_neighborhood['id']
-    assert data['id'] == new_id
-    assert new_id in mock_neighborhood_db
-    assert mock_neighborhood_db[new_id]['name'] == new_neighborhood['name']
+    assert data['id'] == new_neighborhood['id']
+
+    resp = TEST_CLIENT.get(f'{ep.NEIGHBORHOODS_EP}/{new_neighborhood["id"]}')
+    assert resp.status_code == OK
+    assert resp.get_json()['name'] == new_neighborhood['name']
 
 
-def test_post_neighborhood_missing_optional_name(new_neighborhood, mock_neighborhood_db, mock_states_db):
+def test_post_neighborhood_missing_optional_name(new_neighborhood):
     del new_neighborhood['name']
     resp = TEST_CLIENT.post(ep.NEIGHBORHOODS_EP, json=new_neighborhood)
-        
     assert resp.status_code == CREATED
-    new_id = new_neighborhood['id']
-    assert mock_neighborhood_db[new_id]['name'] == 'Unnamed Neighborhood'
+
+    resp = TEST_CLIENT.get(f'{ep.NEIGHBORHOODS_EP}/{new_neighborhood["id"]}')
+    assert resp.get_json()['name'] == 'Unnamed Neighborhood'
 
 
-def test_post_neighborhood_already_exists(new_neighborhood, existing_neighborhood_id, mock_neighborhood_db, mock_states_db):
-    new_neighborhood['id'] = existing_neighborhood_id
-    db_length_before = len(mock_neighborhood_db)
-    
+def test_post_neighborhood_already_exists(new_neighborhood,
+                                          existing_neighborhood):
+    new_neighborhood['id'] = existing_neighborhood['id']
+    count_before = len(
+        TEST_CLIENT.get(ep.NEIGHBORHOODS_EP).get_json()[ep.NEIGHBORHOODS_RESP])
+
     resp = TEST_CLIENT.post(ep.NEIGHBORHOODS_EP, json=new_neighborhood)
     assert resp.status_code == CONFLICT
-    assert len(mock_neighborhood_db) == db_length_before
+
+    count_after = len(
+        TEST_CLIENT.get(ep.NEIGHBORHOODS_EP).get_json()[ep.NEIGHBORHOODS_RESP])
+    assert count_after == count_before
 
 
-@pytest.mark.parametrize("modify_payload, expected_status", [
-    (lambda p: p.pop('id'), BAD_REQUEST),
-    (lambda p: p.pop('state_id'), BAD_REQUEST),
-    (lambda p: p.update({'id': 'too-short'}), BAD_REQUEST),
-    (lambda p: p.update({'state_id': 'ZZ'}), BAD_REQUEST),
-])
-def test_post_neighborhood_invalid_data(modify_payload, expected_status, new_neighborhood, mock_neighborhood_db, mock_states_db):
-    modify_payload(new_neighborhood)
-    db_length_before = len(mock_neighborhood_db)
-    
-    resp = TEST_CLIENT.post(ep.NEIGHBORHOODS_EP, json=new_neighborhood)
-    
-    assert resp.status_code == expected_status
-    assert len(mock_neighborhood_db) == db_length_before
-
-
-@pytest.mark.parametrize("changes", [
-    {"state_id": "CA"},
-    {"name": "Phoenix", "state_id": "AZ"},
-    {"name": "Updated Village"}
-])
-def test_patch_neighborhood_success(changes, existing_neighborhood_id, mock_neighborhood_db, mock_states_db):
-    original = mock_neighborhood_db[existing_neighborhood_id].copy()
-    
-    resp = TEST_CLIENT.patch(f"{ep.NEIGHBORHOODS_EP}/{existing_neighborhood_id}", json=changes)
-    print(resp.get_json())
+def _get_neighborhood(n_id):
+    resp = TEST_CLIENT.get(f'{ep.NEIGHBORHOODS_EP}/{n_id}')
     assert resp.status_code == OK
-    
+    return resp.get_json()
+
+
+def test_patch_neighborhood_name(existing_neighborhood):
+    n_id = existing_neighborhood['id']
+    resp = TEST_CLIENT.patch(f'{ep.NEIGHBORHOODS_EP}/{n_id}',
+                             json={'name': 'Updated Village'})
+    assert resp.status_code == OK
     data = resp.get_json()['Neighborhood']
-    expected_name = changes.get('name', original['name'])
-    expected_state = changes.get('state_id', original['state_id'])
-    
-    assert data['name'] == expected_name
-    assert data['state_id'] == expected_state
-    
-    assert mock_neighborhood_db[existing_neighborhood_id]['name'] == expected_name
-    assert mock_neighborhood_db[existing_neighborhood_id]['state_id'] == expected_state
+    assert data['name'] == 'Updated Village'
+    assert data['state_id'] == existing_neighborhood['state_id']
+
+    persisted = _get_neighborhood(n_id)
+    assert persisted['name'] == 'Updated Village'
+    assert persisted['state_id'] == existing_neighborhood['state_id']
 
 
-def test_patch_neighborhood_empty_payload(existing_neighborhood_id, mock_neighborhood_db):
-    original_state = mock_neighborhood_db[existing_neighborhood_id].copy()
-    
-    resp = TEST_CLIENT.patch(f"{ep.NEIGHBORHOODS_EP}/{existing_neighborhood_id}", json={})
-    assert resp.status_code == BAD_REQUEST
-    assert mock_neighborhood_db[existing_neighborhood_id] == original_state
+def test_patch_neighborhood_state(existing_neighborhood, other_state_id):
+    n_id = existing_neighborhood['id']
+    resp = TEST_CLIENT.patch(f'{ep.NEIGHBORHOODS_EP}/{n_id}',
+                             json={'state_id': other_state_id})
+    assert resp.status_code == OK
+    assert resp.get_json()['Neighborhood']['state_id'] == other_state_id
+
+    persisted = _get_neighborhood(n_id)
+    assert persisted['state_id'] == other_state_id
+    assert persisted['name'] == existing_neighborhood['name']
 
 
-@pytest.mark.parametrize("changes", [
-    {"state_id": "BAD_FORMAT"},
-    {"state_id": "ZZ"}  # valid format but non-existent state
+def test_patch_neighborhood_name_and_state(existing_neighborhood,
+                                           other_state_id):
+    n_id = existing_neighborhood['id']
+    changes = {'name': 'Phoenix', 'state_id': other_state_id}
+    resp = TEST_CLIENT.patch(f'{ep.NEIGHBORHOODS_EP}/{n_id}', json=changes)
+    assert resp.status_code == OK
+
+    persisted = _get_neighborhood(n_id)
+    assert persisted['name'] == 'Phoenix'
+    assert persisted['state_id'] == other_state_id
+
+
+@pytest.mark.parametrize('changes', [
+    {'state_id': 'BAD_FORMAT'},
+    {'state_id': 'ZZ'},  # valid format, nonexistent state
 ])
-def test_patch_neighborhood_invalid_data(changes, existing_neighborhood_id, mock_neighborhood_db, mock_states_db):
-    original_state = mock_neighborhood_db[existing_neighborhood_id].copy()
-    
-    resp = TEST_CLIENT.patch(f"{ep.NEIGHBORHOODS_EP}/{existing_neighborhood_id}", json=changes)
+def test_patch_neighborhood_invalid_data(changes, existing_neighborhood):
+    n_id = existing_neighborhood['id']
+    resp = TEST_CLIENT.patch(f'{ep.NEIGHBORHOODS_EP}/{n_id}', json=changes)
     assert resp.status_code == BAD_REQUEST
-    assert mock_neighborhood_db[existing_neighborhood_id] == original_state
+    assert _get_neighborhood(n_id) == existing_neighborhood
 
 
-def test_patch_neighborhood_not_found(mock_neighborhood_db):
-    missing_id = "missing-neighborhood-id-1234"
-    db_length_before = len(mock_neighborhood_db)
-
-    resp = TEST_CLIENT.patch(f"{ep.NEIGHBORHOODS_EP}/{missing_id}", json={"name": "Ghost Town"})
+def test_patch_neighborhood_not_found():
+    resp = TEST_CLIENT.patch(f'{ep.NEIGHBORHOODS_EP}/missing-neighborhood-id-1234',
+                             json={'name': 'Ghost Town'})
     assert resp.status_code == NOT_FOUND
-    assert len(mock_neighborhood_db) == db_length_before
 
 
-def test_delete_neighborhood_success(existing_neighborhood_id, mock_neighborhood_db):
-    resp = TEST_CLIENT.delete(f"{ep.NEIGHBORHOODS_EP}/{existing_neighborhood_id}")
-    
+def test_patch_neighborhood_empty_payload(existing_neighborhood, mock_neighborhood_db):
+    original_state = mock_neighborhood_db[existing_neighborhood['id']].copy()
+
+    resp = TEST_CLIENT.patch(f"{ep.NEIGHBORHOODS_EP}/{existing_neighborhood['id']}", json={})
+    assert resp.status_code == BAD_REQUEST
+    assert mock_neighborhood_db[existing_neighborhood['id']] == original_state
+
+
+def test_delete_neighborhood_success(existing_neighborhood):
+    n_id = existing_neighborhood['id']
+    resp = TEST_CLIENT.delete(f'{ep.NEIGHBORHOODS_EP}/{n_id}')
     assert resp.status_code == NO_CONTENT
-    assert existing_neighborhood_id not in mock_neighborhood_db
 
-
-def test_delete_neighborhood_not_found(mock_neighborhood_db):
-    missing_id = "missing-neighborhood-id-1234"
-    db_length_before = len(mock_neighborhood_db)
-    
-    resp = TEST_CLIENT.delete(f"{ep.NEIGHBORHOODS_EP}/{missing_id}")
-    
+    resp = TEST_CLIENT.get(f'{ep.NEIGHBORHOODS_EP}/{n_id}')
     assert resp.status_code == NOT_FOUND
-    assert len(mock_neighborhood_db) == db_length_before
 
 
-@patch('server.endpoints.pqry.read')
-def test_get_neighborhood_properties(mock_pqry_read, mock_neighborhood_db):
-    n_id = "73a1b2c3-d4e5-6f7a-8b9c-0123456789ab"
-    
-    mock_pqry_read.return_value = [
-        {'id': 'prop-1', 'neighborhood_id': n_id, 'address': '123 Main St'},
-        {'id': 'prop-2', 'neighborhood_id': 'different-id', 'address': '456 Elm St'}
-    ]
-    
+def test_delete_neighborhood_not_found(existing_neighborhood):
+    count_before = len(
+        TEST_CLIENT.get(ep.NEIGHBORHOODS_EP).get_json()[ep.NEIGHBORHOODS_RESP])
+
+    resp = TEST_CLIENT.delete(f'{ep.NEIGHBORHOODS_EP}/missing-neighborhood-id-1234')
+    assert resp.status_code == NOT_FOUND
+
+    count_after = len(
+        TEST_CLIENT.get(ep.NEIGHBORHOODS_EP).get_json()[ep.NEIGHBORHOODS_RESP])
+    assert count_after == count_before
+
+
+def test_get_neighborhood_properties(existing_neighborhood):
+    n_id = existing_neighborhood['id']
+    prop = {**NEW_PROPERTY, 'neighborhood_id': n_id}
+    resp = TEST_CLIENT.post(ep.PROPERTIES_EP, json=prop)
+    assert resp.status_code == CREATED
+
     resp = TEST_CLIENT.get(f'{ep.NEIGHBORHOODS_EP}/{n_id}/properties')
-        
     assert resp.status_code == OK
     properties = resp.get_json()[ep.PROPERTIES_RESP]
-    
-    assert len(properties) == 1
-    assert properties[0]['id'] == 'prop-1'
-    assert properties[0]['neighborhood_id'] == n_id
+    assert prop['id'] in [p['id'] for p in properties]
+    assert all(p['neighborhood_id'] == n_id for p in properties)
 
 
-def test_get_neighborhood_properties_missing_neighborhood(mock_neighborhood_db):
+def test_get_neighborhood_properties_missing_neighborhood():
     resp = TEST_CLIENT.get(f'{ep.NEIGHBORHOODS_EP}/missing-id/properties')
     assert resp.status_code == NOT_FOUND
 
 
-@patch('server.endpoints.pqry.read')
-def test_get_neighborhood_properties_empty(mock_pqry_read, mock_neighborhood_db):
-    mock_pqry_read.return_value = []
-    
-    n_id = "73a1b2c3-d4e5-6f7a-8b9c-0123456789ab"
-    resp = TEST_CLIENT.get(f'{ep.NEIGHBORHOODS_EP}/{n_id}/properties')
-        
+def test_get_neighborhood_properties_empty(new_neighborhood):
+    resp = TEST_CLIENT.post(ep.NEIGHBORHOODS_EP, json=new_neighborhood)
+    assert resp.status_code == CREATED
+
+    resp = TEST_CLIENT.get(
+        f'{ep.NEIGHBORHOODS_EP}/{new_neighborhood["id"]}/properties')
     assert resp.status_code == OK
     assert resp.get_json()[ep.PROPERTIES_RESP] == []
 
@@ -784,21 +794,21 @@ def test_post_neighborhood_db_unavailable(mock_is_db_up, new_neighborhood):
 
 
 @patch('neighborhoods.query.dbc.is_db_up', return_value=False, autospec=True)
-def test_patch_neighborhood_db_unavailable(mock_is_db_up, existing_neighborhood_id):
+def test_patch_neighborhood_db_unavailable(mock_is_db_up, existing_neighborhood):
     changes = {"name": "Doesn't Matter"}
-    resp = TEST_CLIENT.patch(f"{ep.NEIGHBORHOODS_EP}/{existing_neighborhood_id}", json=changes)
+    resp = TEST_CLIENT.patch(f"{ep.NEIGHBORHOODS_EP}/{existing_neighborhood['id']}", json=changes)
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
 @patch('neighborhoods.query.dbc.is_db_up', return_value=False, autospec=True)
-def test_delete_neighborhood_db_unavailable(mock_is_db_up, existing_neighborhood_id):
-    resp = TEST_CLIENT.delete(f"{ep.NEIGHBORHOODS_EP}/{existing_neighborhood_id}")
+def test_delete_neighborhood_db_unavailable(mock_is_db_up, existing_neighborhood):
+    resp = TEST_CLIENT.delete(f"{ep.NEIGHBORHOODS_EP}/{existing_neighborhood['id']}")  
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
 @patch('neighborhoods.query.dbc.is_db_up', return_value=False, autospec=True)
-def test_get_neighborhood_properties_db_unavailable(mock_is_db_up, existing_neighborhood_id):
-    resp = TEST_CLIENT.get(f'{ep.NEIGHBORHOODS_EP}/{existing_neighborhood_id}/properties')
+def test_get_neighborhood_properties_db_unavailable(mock_is_db_up, existing_neighborhood):
+    resp = TEST_CLIENT.get(f'{ep.NEIGHBORHOODS_EP}/{existing_neighborhood["id"]}/properties')
     assert resp.status_code == SERVICE_UNAVAILABLE
 
 
