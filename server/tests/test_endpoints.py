@@ -883,3 +883,49 @@ def test_state_swagger_matches_real_responses():
     assert set(one) == set(definitions['StateResponse']['properties'])
     many = TEST_CLIENT.get(ep.STATES_EP).get_json()
     assert set(many) == set(definitions['States']['properties'])
+
+
+def test_post_state_with_coordinates(new_state):
+    new_state.update({'latitude': 40.7128, 'longitude': -74.006})
+    resp = TEST_CLIENT.post(ep.STATES_EP, json=new_state)
+    assert resp.status_code == CREATED
+    state = resp.get_json()[ep.STATE_RESP]
+    assert state['latitude'] == 40.7128
+    assert state['longitude'] == -74.006
+    resp = TEST_CLIENT.get(f'{ep.STATES_EP}/{new_state["id"]}')
+    assert resp.get_json()[ep.STATE_RESP]['latitude'] == 40.7128
+
+
+@pytest.mark.parametrize('coordinates', [
+    {'latitude': 40.0},
+    {'longitude': -74.0},
+    {'latitude': 91, 'longitude': -74.0},
+    {'latitude': 40.0, 'longitude': -181},
+])
+def test_post_state_bad_coordinates(new_state, coordinates):
+    new_state.update(coordinates)
+    resp = TEST_CLIENT.post(ep.STATES_EP, json=new_state)
+    assert resp.status_code == BAD_REQUEST
+
+
+def test_patch_state_coordinates():
+    resp = TEST_CLIENT.patch(f'{ep.STATES_EP}/AL',
+                             json={'latitude': 33.5, 'longitude': -86.8})
+    assert resp.status_code == OK
+    state = resp.get_json()[ep.STATE_RESP]
+    assert state['latitude'] == 33.5
+    assert state['longitude'] == -86.8
+    resp = TEST_CLIENT.get(f'{ep.STATES_EP}/AL')
+    assert resp.get_json()[ep.STATE_RESP]['longitude'] == -86.8
+
+
+@pytest.mark.parametrize('changes', [
+    {'latitude': 100},
+    {'longitude': 200},
+    {'latitude': 'north'},
+])
+def test_patch_state_bad_coordinates(changes):
+    resp = TEST_CLIENT.patch(f'{ep.STATES_EP}/AL', json=changes)
+    assert resp.status_code == BAD_REQUEST
+    resp = TEST_CLIENT.get(f'{ep.STATES_EP}/AL')
+    assert resp.get_json()[ep.STATE_RESP]['latitude'] == 32.318231

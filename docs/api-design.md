@@ -91,6 +91,15 @@ returns 404, and an unavailable database returns 503.
 `DELETE /states/{state_id}` returns 409 while any neighborhood references
 the state. Reassign or delete those neighborhoods before deleting the state.
 
+### State coordinates
+
+States can carry a `latitude` and a `longitude`. The seeded states get them
+from `states/raw_data/states.csv`. When creating a state both are optional,
+but they must be given together. Latitude must be between -90 and 90, and
+longitude between -180 and 180. `PATCH /states/{state_id}` can change either
+one, but a state must always end up with both set. A missing partner, an
+out-of-range value, or a non-numeric value returns HTTP 400.
+
 ## Response formats
 
 List endpoints wrap the collection in a labeled object:
@@ -104,7 +113,9 @@ List endpoints wrap the collection in a labeled object:
       "capital": "Montgomery",
       "population": 4903185,
       "area_sq_miles": 52420,
-      "region_id": "SE"
+      "region_id": "SE",
+      "latitude": 32.318231,
+      "longitude": -86.902298
     }
   ]
 }
