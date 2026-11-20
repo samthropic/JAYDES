@@ -13,6 +13,10 @@ CLOUD = "1"
 SE_DB = 'seDB'
 SERVER_SELECTION_TIMEOUT_MS = 2000
 
+CLOUD_USER = 'sf4095'
+CLOUD_HOST = 'test.3jsm0.mongodb.net'
+CLOUD_MONGO_OPTIONS = 'retryWrites=true&w=majority'
+
 client = None
 
 MONGO_ID = '_id'
@@ -36,9 +40,8 @@ def connect_db():
                                  + 'to use Mongo in the cloud.')
             print('Connecting to Mongo in the cloud.')
             client = pm.MongoClient(
-                f'mongodb+srv://sf4095:{password}'
-                + '@test.3jsm0.mongodb.net/'
-                + '?retryWrites=true&w=majority',
+                f'mongodb+srv://{CLOUD_USER}:{password}'
+                + f'@{CLOUD_HOST}/?{CLOUD_MONGO_OPTIONS}',
                 serverSelectionTimeoutMS=SERVER_SELECTION_TIMEOUT_MS,
             )
         else:
