@@ -19,6 +19,7 @@ CLOUD_MONGO_OPTIONS = 'retryWrites=true&w=majority'
 
 client = None
 
+AUTH_FAILED_CODES = (18, 8000)
 MONGO_ID = '_id'
 
 
@@ -73,6 +74,10 @@ def is_db_up():
     """
     try:
         connect_db().admin.command('ping')
+    except pm.errors.OperationFailure as e:
+        if e.code in AUTH_FAILED_CODES:
+            print('Mongo is reachable, but authentication failed.')
+        return False
     except (pm.errors.PyMongoError, ValueError, OSError):
         return False
     return True
