@@ -19,7 +19,7 @@ CLOUD_MONGO_OPTIONS = 'retryWrites=true&w=majority'
 
 client = None
 
-AUTH_FAILED_CODES = (18, 8000)
+AUTH_FAILED_CODES = (13, 18, 8000)
 MONGO_ID = '_id'
 
 
@@ -74,11 +74,32 @@ def is_db_up():
     """
     try:
         connect_db().admin.command('ping')
+    except pm.errors.ServerSelectionTimeoutError as e:
+        print(
+            'Could not reach Mongo (check Atlas IP access list, '
+            f'DNS, TLS, or VPN): {e}'
+        )
+        return False
     except pm.errors.OperationFailure as e:
         if e.code in AUTH_FAILED_CODES:
-            print('Mongo is reachable, but authentication failed.')
+            print(
+                'Mongo is reachable, but authentication failed '
+                f'(code {e.code}): {e.details}'
+            )
+        else:
+            print(f'Mongo operation failed (code {e.code}): {e}')
         return False
-    except (pm.errors.PyMongoError, ValueError, OSError):
+    except pm.errors.ConfigurationError as e:
+        print(
+            'Invalid Mongo configuration '
+            f'(bad URI or DNS/SRV lookup): {e}'
+        )
+        return False
+    except (pm.errors.PyMongoError, ValueError, OSError) as e:
+        print(
+            'Unexpected error connecting to Mongo: '
+            f'{type(e).__name__}: {e}'
+        )
         return False
     return True
 
