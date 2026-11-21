@@ -686,22 +686,89 @@ def test_property_swagger_uses_separate_schemas():
     definitions = swagger['definitions']
     properties = swagger['paths'][ep.PROPERTIES_EP]
     property_by_id = swagger['paths'][f'{ep.PROPERTIES_EP}/{{property_id}}']
+    property_search = swagger['paths'][f'{ep.PROPERTIES_EP}/search']
+    neighborhood_properties = swagger['paths'][
+        f'{ep.NEIGHBORHOODS_EP}/{{neighborhood_id}}/properties'
+    ]
 
     assert properties['post']['parameters'][0]['schema']['$ref'] == (
         '#/definitions/PropertyInput'
     )
+    assert properties['get']['responses']['200']['schema']['$ref'] == (
+        '#/definitions/Properties'
+    )
     assert properties['post']['responses']['201']['schema']['$ref'] == (
-        '#/definitions/Property'
+        '#/definitions/PropertyResponse'
+    )
+    assert property_search['get']['responses']['200']['schema']['$ref'] == (
+        '#/definitions/Properties'
+    )
+    assert neighborhood_properties['get']['responses']['200']['schema'][
+        '$ref'
+    ] == '#/definitions/Properties'
+    assert property_by_id['get']['responses']['200']['schema']['$ref'] == (
+        '#/definitions/PropertyResponse'
     )
     assert property_by_id['patch']['parameters'][0]['schema']['$ref'] == (
         '#/definitions/PropertyUpdate'
     )
     assert property_by_id['patch']['responses']['200']['schema']['$ref'] == (
-        '#/definitions/Property'
+        '#/definitions/PropertyResponse'
     )
     assert 'id' not in definitions['PropertyUpdate']['properties']
     assert definitions['PropertyUpdate']['additionalProperties'] is False
     assert definitions['PropertyInput']['additionalProperties'] is False
+
+
+def test_property_swagger_responses_match_real_envelopes():
+    swagger = TEST_CLIENT.get('/swagger.json').get_json()
+    definitions = swagger['definitions']
+    responses = [
+        ('/properties', 'get', TEST_CLIENT.get('/properties')),
+        ('/properties', 'post', TEST_CLIENT.post(
+            '/properties', json=NEW_PROPERTY
+        )),
+        ('/properties/search', 'get', TEST_CLIENT.get(
+            '/properties/search?min_price=0'
+        )),
+        ('/properties/{property_id}', 'get', TEST_CLIENT.get(
+            '/properties/prop-001'
+        )),
+        ('/properties/{property_id}', 'patch', TEST_CLIENT.patch(
+            '/properties/prop-001', json={'price': 1900000}
+        )),
+        ('/neighborhoods/{neighborhood_id}/properties', 'get',
+         TEST_CLIENT.get(
+             '/neighborhoods/73a1b2c3-d4e5-6f7a-8b9c-0123456789ab/'
+             'properties'
+         )),
+    ]
+
+    for path, method, response in responses:
+        assert response.status_code in (OK, CREATED)
+        operation = swagger['paths'][path][method]
+        status = str(response.status_code)
+        schema = operation['responses'][status]['schema']
+        model_name = schema['$ref'].rsplit('/', 1)[-1]
+        model = definitions[model_name]
+        body = response.get_json()
+
+        assert set(body) == set(model['properties'])
+        for key, value in body.items():
+            field_schema = model['properties'][key]
+            if isinstance(value, list):
+                item_model = definitions[
+                    field_schema['items']['$ref'].rsplit('/', 1)[-1]
+                ]
+                assert all(
+                    set(item) == set(item_model['properties'])
+                    for item in value
+                )
+            else:
+                item_model = definitions[
+                    field_schema['$ref'].rsplit('/', 1)[-1]
+                ]
+                assert set(value) == set(item_model['properties'])
 
 
 @patch('properties.query.is_db_up', return_value=False, autospec=True)
@@ -713,7 +780,7 @@ def test_post_property_db_unavailable(mock_is_db_up):
 def test_get_property_by_id():
     resp = TEST_CLIENT.get(f"{ep.PROPERTIES_EP}/prop-001")
     assert resp.status_code == OK
-    resp_json = resp.get_json()
+    resp_json = resp.get_json()[ep.PROPERTY_RESP]
     assert resp_json['id'] == 'prop-001'
     assert 'address' in resp_json
 

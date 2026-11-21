@@ -184,6 +184,16 @@ property_update_model = api.model('PropertyUpdate', {
     'longitude': fields.Float(description='Longitude'),
 }, strict=True)
 
+properties_response_model = api.model('Properties', {
+    PROPERTIES_RESP: fields.List(
+        fields.Nested(property_response_model), required=True
+    ),
+})
+
+property_envelope_model = api.model('PropertyResponse', {
+    PROPERTY_RESP: fields.Nested(property_response_model, required=True),
+})
+
 health_model = api.model('Health', {
     HEALTH_STATUS: fields.String(description='API status', example='ok'),
     HEALTH_DATABASE: fields.String(description='MongoDB status',
@@ -657,7 +667,7 @@ class NeighborhoodProperties(Resource):
     """
     The get method will return all properties in a specific neighborhood.
     """
-    @api.response(HTTPStatus.OK.value, 'Success', [property_response_model])
+    @api.response(HTTPStatus.OK.value, 'Success', properties_response_model)
     @api.response(HTTPStatus.NOT_FOUND.value, 'Neighborhood Not Found')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def get(self, neighborhood_id):
@@ -687,7 +697,7 @@ class Properties(Resource):
     """
     The get method will return a list of all properties in the database.
     """
-    @api.response(HTTPStatus.OK.value, 'Success', [property_response_model])
+    @api.response(HTTPStatus.OK.value, 'Success', properties_response_model)
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def get(self):
         """
@@ -699,7 +709,7 @@ class Properties(Resource):
         return {PROPERTIES_RESP: properties}
 
     @api.expect(property_input_model, validate=True)
-    @api.response(HTTPStatus.CREATED.value, 'Created', property_response_model)
+    @api.response(HTTPStatus.CREATED.value, 'Created', property_envelope_model)
     @api.response(HTTPStatus.BAD_REQUEST.value, 'Invalid property data')
     @api.response(HTTPStatus.CONFLICT.value, 'Property already exists')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
@@ -756,7 +766,7 @@ class Properties(Resource):
 })
 class PropertySearch(Resource):
     """Search properties by inclusive numeric bounds."""
-    @api.response(HTTPStatus.OK.value, 'Success', [property_response_model])
+    @api.response(HTTPStatus.OK.value, 'Success', properties_response_model)
     @api.response(HTTPStatus.BAD_REQUEST.value, 'Invalid property filter')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def get(self):
@@ -791,7 +801,7 @@ class Property(Resource):
     """
     The get method will return a single property by id.
     """
-    @api.response(HTTPStatus.OK.value, 'Success', property_response_model)
+    @api.response(HTTPStatus.OK.value, 'Success', property_envelope_model)
     @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
     def get(self, property_id):
@@ -803,10 +813,10 @@ class Property(Resource):
             if not pqry.is_db_up():
                 raise wz.ServiceUnavailable('Database may be down.')
             raise wz.NotFound(f'Property {property_id} not found.')
-        return property_record
+        return {PROPERTY_RESP: property_record}
 
     @api.expect(property_update_model, validate=True)
-    @api.response(HTTPStatus.OK.value, 'Updated', property_response_model)
+    @api.response(HTTPStatus.OK.value, 'Updated', property_envelope_model)
     @api.response(HTTPStatus.BAD_REQUEST.value, 'Invalid property data')
     @api.response(HTTPStatus.NOT_FOUND.value, 'Not Found')
     @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Service Unavailable')
