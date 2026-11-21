@@ -667,6 +667,43 @@ def test_post_property_missing_field():
     assert resp.status_code == BAD_REQUEST
 
 
+def test_post_property_unknown_field():
+    resp = TEST_CLIENT.post(
+        ep.PROPERTIES_EP, json={**NEW_PROPERTY, 'unexpected': 'value'}
+    )
+    assert resp.status_code == BAD_REQUEST
+
+
+def test_post_property_invalid_field_type():
+    resp = TEST_CLIENT.post(
+        ep.PROPERTIES_EP, json={**NEW_PROPERTY, 'price': 'not-a-number'}
+    )
+    assert resp.status_code == BAD_REQUEST
+
+
+def test_property_swagger_uses_separate_schemas():
+    swagger = TEST_CLIENT.get('/swagger.json').get_json()
+    definitions = swagger['definitions']
+    properties = swagger['paths'][ep.PROPERTIES_EP]
+    property_by_id = swagger['paths'][f'{ep.PROPERTIES_EP}/{{property_id}}']
+
+    assert properties['post']['parameters'][0]['schema']['$ref'] == (
+        '#/definitions/PropertyInput'
+    )
+    assert properties['post']['responses']['201']['schema']['$ref'] == (
+        '#/definitions/Property'
+    )
+    assert property_by_id['patch']['parameters'][0]['schema']['$ref'] == (
+        '#/definitions/PropertyUpdate'
+    )
+    assert property_by_id['patch']['responses']['200']['schema']['$ref'] == (
+        '#/definitions/Property'
+    )
+    assert 'id' not in definitions['PropertyUpdate']['properties']
+    assert definitions['PropertyUpdate']['additionalProperties'] is False
+    assert definitions['PropertyInput']['additionalProperties'] is False
+
+
 @patch('properties.query.is_db_up', return_value=False, autospec=True)
 def test_post_property_db_unavailable(mock_is_db_up):
     resp = TEST_CLIENT.post(ep.PROPERTIES_EP, json=NEW_PROPERTY)
@@ -715,6 +752,13 @@ def test_patch_property_unknown_neighborhood():
 
 def test_patch_property_empty_changes():
     resp = TEST_CLIENT.patch(f"{ep.PROPERTIES_EP}/prop-001", json={})
+    assert resp.status_code == BAD_REQUEST
+
+
+def test_patch_property_unknown_field():
+    resp = TEST_CLIENT.patch(
+        f"{ep.PROPERTIES_EP}/prop-001", json={"id": "changed-id"}
+    )
     assert resp.status_code == BAD_REQUEST
 
 
