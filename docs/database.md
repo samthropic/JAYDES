@@ -25,6 +25,13 @@ Stored in the `states` collection. `STATE_TEST_DATA` in `states/query.py` is the
 
 Stored in the `regions` collection. `REGION_TEST_DATA` in `regions/query.py` is the seed copied in when that collection is empty. A region is a multi-state area (Northeast, Southeast, Midwest), not a city.
 
+A unique MongoDB index on `regions.id` is ensured before seeding and before
+creating a region, including when reads use cached data. Concurrent attempts
+to create the same code produce one record; the losing request returns HTTP
+409. Codes remain case-sensitive. If existing records contain duplicate ids,
+index creation fails and requires those records to be reconciled before new
+writes can proceed. Index creation does not remove existing records.
+
 | Field | Required | Notes |
 |-------|----------|--------|
 | `id` | yes | Two ASCII letters, such as `NE`. Stored on the document and included in each API record. |

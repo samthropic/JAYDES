@@ -1,4 +1,7 @@
 import pytest
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
+from pymongo.errors import DuplicateKeyError
 
 import data.db_connect as dbc
 import regions.query as rqry
@@ -62,3 +65,31 @@ def test_region_with_states_is_not_deleted():
         rqry.delete('SE')
     assert _stored(rqry.REGIONS_COLLECTION, 'SE') is not None
     assert _stored(sqry.STATES_COLLECTION, 'AL')['region_id'] == 'SE'
+
+
+def test_region_unique_index_rejects_direct_duplicate_insert():
+    # The fixture seeds regions, which must install the index first.
+    with pytest.raises(DuplicateKeyError):
+        dbc.create(rqry.REGIONS_COLLECTION, {
+            'id': 'NE', 'name': 'Duplicate', 'population': 0,
+            'description': 'Duplicate region'})
+    stored = dbc.read(rqry.REGIONS_COLLECTION)
+    assert sum(region['id'] == 'NE' for region in stored) == 1
+
+
+def test_concurrent_region_creates_store_only_one_record():
+    barrier = Barrier(2)
+
+    def create_region():
+        barrier.wait(timeout=10)
+        try:
+            rqry.create('TR', 'Test Region', 0, 'Concurrent creation')
+            return 'created'
+        except rqry.RegionAlreadyExistsError:
+            return 'duplicate'
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(executor.map(lambda _: create_region(), range(2)))
+    assert sorted(results) == ['created', 'duplicate']
+    stored = dbc.read(rqry.REGIONS_COLLECTION)
+    assert sum(region['id'] == 'TR' for region in stored) == 1
