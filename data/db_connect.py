@@ -112,7 +112,7 @@ def convert_mongo_id(doc: dict):
 
 @needs_db
 def ensure_unique_index(collection, field, db=SE_DB):
-    """Ensure MongoDB enforces uniqueness for a field, including direct writes."""
+    """Ensure MongoDB enforces field uniqueness, including direct writes."""
     return client[db][collection].create_index(field, unique=True)
 
 
