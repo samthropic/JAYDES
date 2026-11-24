@@ -4,6 +4,7 @@ import data.cache as cache
 import data.db_connect as dbc
 from data.db_connect import is_db_up
 from common.validation import is_integer
+from pymongo.errors import DuplicateKeyError
 
 
 REGION_CODE_LEN = 2
@@ -15,6 +16,10 @@ UPDATABLE_FIELDS = ('name', 'population', 'description')
 
 class RegionHasStatesError(ValueError):
     """A region cannot be deleted while states reference it."""
+
+
+class RegionAlreadyExistsError(ValueError):
+    """A region with this code already exists."""
 
 
 TEST_REGION = {
@@ -46,10 +51,15 @@ REGION_TEST_DATA = {
 def _ensure_seeded():
     """Insert REGION_TEST_DATA when the regions collection is empty."""
     dbc.connect_db()
+    dbc.ensure_unique_index(REGIONS_COLLECTION, ID)
     if dbc.read(REGIONS_COLLECTION):
         return
     for code, data in REGION_TEST_DATA.items():
-        dbc.create(REGIONS_COLLECTION, {ID: code, **data})
+        try:
+            dbc.create(REGIONS_COLLECTION, {ID: code, **data})
+        except DuplicateKeyError:
+            # Another request may have inserted this seed after our read.
+            pass
 
 
 def read():
@@ -92,7 +102,9 @@ def exists(region_code: str):
 def check_valid_region(region_code: str, name: str, population: int,
                        description: str):
     if exists(region_code):
-        raise ValueError(f"Region code {region_code} already exists.")
+        raise RegionAlreadyExistsError(
+            f"Region code {region_code} already exists."
+        )
     if (not isinstance(region_code, str)
             or len(region_code) != REGION_CODE_LEN
             or not region_code.isascii() or not region_code.isalpha()):
@@ -121,7 +133,14 @@ def create(region_code: str, name: str, population: int,
         "population": population,
         "description": description,
     }
-    dbc.create(REGIONS_COLLECTION, doc)
+    dbc.ensure_unique_index(REGIONS_COLLECTION, ID)
+    try:
+        dbc.create(REGIONS_COLLECTION, doc)
+    except DuplicateKeyError as err:
+        cache.invalidate(REGIONS_CACHE)
+        raise RegionAlreadyExistsError(
+            f"Region code {region_code} already exists."
+        ) from err
     cache.invalidate(REGIONS_CACHE)
     return {
         ID: region_code,

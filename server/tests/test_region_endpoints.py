@@ -25,6 +25,7 @@ def seeded_db():
 
     with patch.object(ep.rqry, 'is_db_up', return_value=True), \
             patch.object(ep.rqry.dbc, 'connect_db'), \
+            patch.object(ep.rqry.dbc, 'ensure_unique_index'), \
             patch.object(ep.rqry.dbc, 'read',
                          side_effect=lambda c: deepcopy(records)), \
             patch.object(ep.rqry.dbc, 'create', side_effect=insert), \

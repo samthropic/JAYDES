@@ -461,6 +461,8 @@ class Regions(Resource):
                 data['population'],
                 data.get('description'),
             )
+        except rqry.RegionAlreadyExistsError as err:
+            raise wz.Conflict(str(err))
         except ValueError as err:
             raise wz.BadRequest(str(err))
 
