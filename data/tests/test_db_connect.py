@@ -35,6 +35,7 @@ def test_needs_db_keeps_function_name_and_docstring():
 
 
 DB_CALLS = [
+    (dbc.ensure_unique_index, (COLLECTION, 'id')),
     (dbc.create, (COLLECTION, {'id': 'x'})),
     (dbc.read_one, (COLLECTION, {'id': 'x'})),
     (dbc.delete, (COLLECTION, {'id': 'x'})),
@@ -58,3 +59,32 @@ def test_db_call_connects_when_there_is_no_client(func, args):
             as mock_connect:
         func(*args)
     mock_connect.assert_called_once()
+
+
+@pytest.mark.parametrize('database', [dbc.SE_DB, 'custom_database'])
+def test_unique_index_connects_before_creating_index(database):
+    fake_client = make_fake_client()
+    collection = fake_client[database][COLLECTION]
+    calls = []
+
+    def connect():
+        calls.append('connect')
+        dbc.client = fake_client
+
+    def create_index(field, unique):
+        calls.append('create_index')
+        assert dbc.client is fake_client
+        assert field == 'id'
+        assert unique is True
+        return 'id_1'
+
+    collection.create_index.side_effect = create_index
+    with patch.object(dbc, 'client', None), \
+            patch.object(dbc, 'connect_db', side_effect=connect) \
+            as mock_connect:
+        result = dbc.ensure_unique_index(COLLECTION, 'id', db=database)
+
+    assert result == 'id_1'
+    assert calls == ['connect', 'create_index']
+    mock_connect.assert_called_once_with()
+    collection.create_index.assert_called_once_with('id', unique=True)
