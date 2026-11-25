@@ -23,6 +23,37 @@ AUTH_FAILED_CODES = (13, 18, 8000)
 MONGO_ID = '_id'
 
 
+def cloud_mongo_enabled():
+    """Return True when CLOUD_MONGO is set to use Atlas."""
+    return os.environ.get('CLOUD_MONGO', LOCAL) == CLOUD
+
+
+def log_mongo_config():
+    """
+    Print how Mongo will be configured for this process.
+
+    Call once at process start (WSGI or local server) so missing
+    CLOUD_MONGO / MONGO_PASSWD show up in the PythonAnywhere error log
+    before the first request returns 503.
+    """
+    if not cloud_mongo_enabled():
+        print('Mongo config: local (CLOUD_MONGO unset or 0).')
+        return
+    user = os.environ.get('MONGO_USER', DEFAULT_CLOUD_USER)
+    host = os.environ.get('MONGO_HOST', DEFAULT_CLOUD_HOST)
+    if not os.environ.get('MONGO_PASSWD'):
+        print(
+            'WARNING: CLOUD_MONGO=1 but MONGO_PASSWD is unset; '
+            'cloud Mongo connections will fail until it is set '
+            f'(user={user} host={host}).'
+        )
+        return
+    print(
+        f'Mongo config: cloud user={user} host={host} '
+        '(MONGO_PASSWD is set).'
+    )
+
+
 def connect_db():
     """
     This provides a uniform way to connect to the DB across all uses.
@@ -34,7 +65,7 @@ def connect_db():
     global client
     if client is None:  # not connected yet!
         print('Setting client because it is None.')
-        if os.environ.get('CLOUD_MONGO', LOCAL) == CLOUD:
+        if cloud_mongo_enabled():
             user = os.environ.get('MONGO_USER', DEFAULT_CLOUD_USER)
             host = os.environ.get('MONGO_HOST', DEFAULT_CLOUD_HOST)
             password = os.environ.get('MONGO_PASSWD')

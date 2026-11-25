@@ -7,6 +7,16 @@ import data.db_connect as dbc
 COLLECTION = 'test_collection'
 
 
+def test_log_mongo_config_warns_when_cloud_password_missing(capsys):
+    with patch.dict('os.environ', {'CLOUD_MONGO': '1'}, clear=False):
+        import os
+        os.environ.pop('MONGO_PASSWD', None)
+        dbc.log_mongo_config()
+        out = capsys.readouterr().out
+    assert 'WARNING' in out
+    assert 'MONGO_PASSWD' in out
+
+
 def make_fake_client():
     """A client whose collections are empty."""
     fake_client = MagicMock()

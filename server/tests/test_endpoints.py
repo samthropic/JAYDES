@@ -33,7 +33,7 @@ def test_health():
     resp = TEST_CLIENT.get(ep.HEALTH_EP)
     assert resp.status_code == OK
     resp_json = resp.get_json()
-    assert resp_json[ep.HEALTH_STATUS] == 'ok'
+    assert resp_json[ep.HEALTH_API] == 'up'
     assert resp_json[ep.HEALTH_DATABASE] == 'up'
 
 
@@ -47,6 +47,9 @@ def test_health_in_swagger():
 def test_health_db_unavailable(mock_is_db_up):
     resp = TEST_CLIENT.get(ep.HEALTH_EP)
     assert resp.status_code == SERVICE_UNAVAILABLE
+    resp_json = resp.get_json()
+    assert resp_json[ep.HEALTH_API] == 'up'
+    assert resp_json[ep.HEALTH_DATABASE] == 'down'
 
 
 def test_stats():

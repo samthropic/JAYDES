@@ -16,13 +16,14 @@ import states.query as sqry
 app = Flask(__name__)
 CORS(app)
 api = Api(app)
+dbc.log_mongo_config()
 
 ENDPOINT_EP = '/endpoints'
 ENDPOINT_RESP = 'Available endpoints'
 HELLO_EP = '/hello'
 HELLO_RESP = 'hello'
 HEALTH_EP = '/health'
-HEALTH_STATUS = 'status'
+HEALTH_API = 'api'
 HEALTH_DATABASE = 'database'
 STATS_EP = '/stats'
 STATS_RESP = 'Stats:'
@@ -195,7 +196,8 @@ property_envelope_model = api.model('PropertyResponse', {
 })
 
 health_model = api.model('Health', {
-    HEALTH_STATUS: fields.String(description='API status', example='ok'),
+    HEALTH_API: fields.String(description='API process status',
+                              example='up'),
     HEALTH_DATABASE: fields.String(description='MongoDB status',
                                    example='up'),
 })
@@ -229,16 +231,21 @@ class HelloWorld(Resource):
 class Health(Resource):
     """
     Report whether the API process is up and whether MongoDB answers a ping.
+    Always returns JSON so a down database is not a bare error page.
     """
     @api.response(HTTPStatus.OK.value, 'API and database are up', health_model)
-    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value, 'Database is down')
+    @api.response(HTTPStatus.SERVICE_UNAVAILABLE.value,
+                  'API up but database is down', health_model)
     def get(self):
         """
         Return health status. HTTP 503 when MongoDB does not accept a ping.
         """
-        if not dbc.is_db_up():
-            raise wz.ServiceUnavailable('Database may be down.')
-        return {HEALTH_STATUS: 'ok', HEALTH_DATABASE: 'up'}
+        if dbc.is_db_up():
+            return {HEALTH_API: 'up', HEALTH_DATABASE: 'up'}
+        return (
+            {HEALTH_API: 'up', HEALTH_DATABASE: 'down'},
+            HTTPStatus.SERVICE_UNAVAILABLE.value,
+        )
 
 
 @api.route(STATS_EP)

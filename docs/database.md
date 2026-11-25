@@ -126,3 +126,11 @@ Each of those test runs uses `data/db_fixture.py`. Before a test, it clears prop
 | `properties` | `PROPERTY_TEST_DATA` in `properties/query.py` | At least five properties; the dictionary key becomes `id`. The referenced neighborhood ids must exist in the neighborhoods collection. |
 
 `data/bkup/games.json` and `data/bkup/users.json` are backups of the old `gamesDB` database. They are not seed data for this API. Do not import them into `seDB`.
+
+## PythonAnywhere
+
+Point the web app at `server/wsgi.py`. It defaults `CLOUD_MONGO=1` and loads
+the Flask app. Set `MONGO_PASSWD` (and optionally `MONGO_USER` / `MONGO_HOST`)
+in the PythonAnywhere environment variables UI. On startup,
+`log_mongo_config()` prints a WARNING if the password is missing.
+`GET /health` returns `{"api":"up","database":"up|down"}` (503 when down).
