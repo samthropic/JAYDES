@@ -1,9 +1,12 @@
 import data.cache as cache
 import neighborhoods.query as nqry
+import properties.query as pqry
 import regions.query as rqry
 import states.query as sqry
 
 NEW_NEIGHBORHOOD_ID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+NEW_PROPERTY_ID = 'prop-cache-test'
+EXISTING_NEIGHBORHOOD_ID = '73a1b2c3-d4e5-6f7a-8b9c-0123456789ab'
 
 
 def _by_id(records, code):
@@ -85,3 +88,49 @@ def test_neighborhood_delete_clears_cached_list():
     assert _by_id(nqry.read(), NEW_NEIGHBORHOOD_ID) is not None
     assert nqry.delete(NEW_NEIGHBORHOOD_ID) is True
     assert _by_id(nqry.read(), NEW_NEIGHBORHOOD_ID) is None
+
+
+def test_property_create_clears_cached_list():
+    pqry.read()
+    pqry.create(
+        NEW_PROPERTY_ID,
+        '99 Cache Lane, Test City, NY',
+        EXISTING_NEIGHBORHOOD_ID,
+        400000,
+        2,
+        1,
+        40.7,
+        -74.0,
+    )
+    properties = pqry.read()
+    assert _by_id(properties, NEW_PROPERTY_ID)['address'] == (
+        '99 Cache Lane, Test City, NY'
+    )
+
+
+def test_property_update_replaces_stale_cache():
+    existing_id = next(iter(pqry.PROPERTY_TEST_DATA))
+    pqry.read()
+    stale = cache.get(pqry.PROPERTIES_CACHE)
+    _by_id(stale, existing_id)['address'] = 'Stale Address'
+    cache.put(pqry.PROPERTIES_CACHE, stale)
+    pqry.update(existing_id, {'price': 1})
+    updated = _by_id(pqry.read(), existing_id)
+    assert updated['address'] == pqry.PROPERTY_TEST_DATA[existing_id]['address']
+    assert updated['price'] == 1
+
+
+def test_property_delete_clears_cached_list():
+    pqry.create(
+        NEW_PROPERTY_ID,
+        '99 Cache Lane, Test City, NY',
+        EXISTING_NEIGHBORHOOD_ID,
+        400000,
+        2,
+        1,
+        40.7,
+        -74.0,
+    )
+    assert _by_id(pqry.read(), NEW_PROPERTY_ID) is not None
+    assert pqry.delete(NEW_PROPERTY_ID) is True
+    assert _by_id(pqry.read(), NEW_PROPERTY_ID) is None
