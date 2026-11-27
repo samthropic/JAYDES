@@ -139,6 +139,12 @@ def _check_region_id(region_id):
         raise ValueError(f"Region ID '{region_id}' does not exist.")
 
 
+def _check_text(label, value):
+    """Require a string with at least one non-space character."""
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{label} must be a non-empty string.")
+
+
 def _check_coordinates(latitude, longitude):
     """Require latitude/longitude in the valid geographic ranges."""
     if not is_finite_number(latitude) or not -90 <= latitude <= 90:
@@ -163,6 +169,8 @@ def check_valid_state(
         raise ValueError(f"State code must be {STATE_CODE_LEN}-letter string.")
     if not is_integer(population) or population < 0:
         raise ValueError("Population must be a non-negative integer.")
+    _check_text('Name', name)
+    _check_text('Capital', capital)
     _check_region_id(region_id)
     if latitude is not None or longitude is not None:
         if latitude is None or longitude is None:
@@ -233,6 +241,10 @@ def update(state_code: str, changes: dict):
         population = changes['population']
         if not is_integer(population) or population < 0:
             raise ValueError("Population must be a non-negative integer.")
+    if 'name' in changes:
+        _check_text('Name', changes['name'])
+    if 'capital' in changes:
+        _check_text('Capital', changes['capital'])
     if 'region_id' in changes:
         _check_region_id(changes['region_id'])
     if 'latitude' in changes or 'longitude' in changes:

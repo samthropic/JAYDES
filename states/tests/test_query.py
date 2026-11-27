@@ -246,3 +246,28 @@ def test_read_is_served_from_cache_after_first_call():
 def test_read_returns_a_copy_of_the_cache():
     qry.read()[0]['name'] = 'Changed'
     assert qry.read()[0]['name'] != 'Changed'
+
+
+@pytest.mark.parametrize('changes', [
+    {'name': ''},
+    {'name': '   '},
+    {'capital': ''},
+    {'capital': None},
+])
+def test_update_rejects_empty_text(changes):
+    before = qry.read_one('AL')
+    with pytest.raises(ValueError, match='non-empty string'):
+        qry.update('AL', changes)
+    assert qry.read_one('AL') == before
+
+
+@pytest.mark.parametrize('name, capital', [('', 'C'), ('N', '   ')])
+def test_create_rejects_empty_text(name, capital):
+    with pytest.raises(ValueError, match='non-empty string'):
+        qry.create(TEST_ST['state_code'],
+                   TEST_ST['population'],
+                   capital,
+                   TEST_ST['area_sq_miles'],
+                   name,
+                   TEST_ST['region_id'])
+    assert qry.read_one(TEST_ST['state_code']) is None

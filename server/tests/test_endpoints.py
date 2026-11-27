@@ -1043,3 +1043,16 @@ def test_patch_state_bad_coordinates(changes):
     assert resp.status_code == BAD_REQUEST
     resp = TEST_CLIENT.get(f'{ep.STATES_EP}/AL')
     assert resp.get_json()[ep.STATE_RESP]['latitude'] == 32.318231
+
+
+@pytest.mark.parametrize('field', ['name', 'capital'])
+def test_post_state_empty_text(new_state, field):
+    new_state[field] = ''
+    resp = TEST_CLIENT.post(ep.STATES_EP, json=new_state)
+    assert resp.status_code == BAD_REQUEST
+
+
+@pytest.mark.parametrize('field', ['name', 'capital'])
+def test_patch_state_empty_text(field):
+    resp = TEST_CLIENT.patch(f'{ep.STATES_EP}/AL', json={field: '   '})
+    assert resp.status_code == BAD_REQUEST
