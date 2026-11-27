@@ -271,3 +271,22 @@ def test_create_rejects_empty_text(name, capital):
                    name,
                    TEST_ST['region_id'])
     assert qry.read_one(TEST_ST['state_code']) is None
+
+
+@pytest.mark.parametrize('area', [0, -5, None, True, float('nan')])
+def test_update_rejects_bad_area(area):
+    before = qry.read_one('AL')
+    with pytest.raises(ValueError, match='Area'):
+        qry.update('AL', {'area_sq_miles': area})
+    assert qry.read_one('AL') == before
+
+
+def test_create_rejects_bad_area():
+    with pytest.raises(ValueError, match='Area'):
+        qry.create(TEST_ST['state_code'],
+                   TEST_ST['population'],
+                   TEST_ST['capital'],
+                   -1,
+                   TEST_ST['name'],
+                   TEST_ST['region_id'])
+    assert qry.read_one(TEST_ST['state_code']) is None

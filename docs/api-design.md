@@ -25,8 +25,8 @@ Example: Northeast (`NE`) -> New York (`NY`) -> Chelsea -> 123 W 20th St.
   region. State updates may omit `region_id` to keep the current parent;
   supplying null, an invalid code, or an unknown region returns HTTP 400.
 
-A state's `name` and `capital` must be non-empty strings. An empty or blank
-value returns HTTP 400.
+A state's `name` and `capital` must be non-empty strings, and
+`area_sq_miles` must be greater than zero. Any other value returns HTTP 400.
 
 ## Endpoint patterns
 

@@ -145,6 +145,12 @@ def _check_text(label, value):
         raise ValueError(f"{label} must be a non-empty string.")
 
 
+def _check_area(area_sq_miles):
+    """Require an area greater than zero."""
+    if not is_finite_number(area_sq_miles) or area_sq_miles <= 0:
+        raise ValueError("Area must be a positive number.")
+
+
 def _check_coordinates(latitude, longitude):
     """Require latitude/longitude in the valid geographic ranges."""
     if not is_finite_number(latitude) or not -90 <= latitude <= 90:
@@ -171,6 +177,7 @@ def check_valid_state(
         raise ValueError("Population must be a non-negative integer.")
     _check_text('Name', name)
     _check_text('Capital', capital)
+    _check_area(area_sq_miles)
     _check_region_id(region_id)
     if latitude is not None or longitude is not None:
         if latitude is None or longitude is None:
@@ -245,6 +252,8 @@ def update(state_code: str, changes: dict):
         _check_text('Name', changes['name'])
     if 'capital' in changes:
         _check_text('Capital', changes['capital'])
+    if 'area_sq_miles' in changes:
+        _check_area(changes['area_sq_miles'])
     if 'region_id' in changes:
         _check_region_id(changes['region_id'])
     if 'latitude' in changes or 'longitude' in changes:
